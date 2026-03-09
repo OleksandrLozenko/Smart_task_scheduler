@@ -1,0 +1,36 @@
+{
+  "tasks": [
+    {
+      "id": "t1",
+      "name": "Stepik"
+    }
+  ],
+  "excluded_cells": {
+    "2026-03-09": {
+      "t1": [
+        6
+      ]
+    }
+  },
+  "planned_cells": {
+    "2026-03-09": {
+      "t1": [
+        3,
+        1,
+        2,
+        2,
+        2,
+        2,
+        0
+      ]
+    }
+  },
+  "done_cells": {},
+  "weekly_targets": {
+    "2026-03-09": {
+      "t1": 12
+    }
+  },
+  "selected_task_id": "t1",
+  "selected_day_index": 1
+}

@@ -18,6 +18,12 @@ class AppSettings:
     main_start_button_height: int = 48
     main_timer_scale_percent: int = 92
     main_card_opacity_percent: int = 94
+    planning_progress_view: str = "fraction"
+    planning_visual_style: str = "circle"
+    planning_visual_max_symbols: int = 6
+    planning_row_height: int = 52
+    planning_table_font_size: int = 16
+    planning_auto_switch_to_timer_on_select: bool = True
     always_on_top_default: bool = False
     floating_opacity_percent: int = 96
     floating_pin_button_size: int = 34
@@ -88,6 +94,12 @@ class SettingsManager:
                     normalized[key] = min(98, max(65, parsed))
                 elif key == "main_card_opacity_percent":
                     normalized[key] = min(100, max(72, parsed))
+                elif key == "planning_visual_max_symbols":
+                    normalized[key] = min(16, max(3, parsed))
+                elif key == "planning_row_height":
+                    normalized[key] = min(84, max(40, parsed))
+                elif key == "planning_table_font_size":
+                    normalized[key] = min(22, max(12, parsed))
                 elif key == "floating_opacity_percent":
                     normalized[key] = min(100, max(35, parsed))
                 elif key == "floating_pin_button_size":
@@ -100,8 +112,16 @@ class SettingsManager:
 
             normalized[key] = candidate
 
-        allowed_themes = {"ocean", "rose", "forest"}
+        allowed_themes = {"ocean", "rose", "forest", "sunset", "graphite"}
         if normalized.get("theme_name") not in allowed_themes:
             normalized["theme_name"] = "ocean"
+
+        allowed_planning_progress = {"fraction", "visual"}
+        if normalized.get("planning_progress_view") not in allowed_planning_progress:
+            normalized["planning_progress_view"] = "fraction"
+
+        allowed_planning_visual_styles = {"circle", "tomato"}
+        if normalized.get("planning_visual_style") not in allowed_planning_visual_styles:
+            normalized["planning_visual_style"] = "circle"
 
         return AppSettings(**normalized)

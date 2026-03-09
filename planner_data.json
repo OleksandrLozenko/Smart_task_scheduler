@@ -1,0 +1,86 @@
+{
+  "tasks": [
+    {
+      "id": "extra_time",
+      "name": "Доп время",
+      "color": "#9EC6DD",
+      "is_extra_time": true
+    }
+  ],
+  "weeks": {
+    "2026-03-09": {
+      "week_start_iso": "2026-03-09",
+      "task_rows": {
+        "extra_time": {
+          "active_days": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false
+          ],
+          "planned_by_day": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "done_by_day": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "total_weekly_value": 0
+        }
+      }
+    },
+    "2026-03-16": {
+      "week_start_iso": "2026-03-16",
+      "task_rows": {
+        "extra_time": {
+          "active_days": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false
+          ],
+          "planned_by_day": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "done_by_day": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "total_weekly_value": 0
+        }
+      }
+    }
+  },
+  "selection": {
+    "task_id": "extra_time",
+    "day_index": 0
+  }
+}

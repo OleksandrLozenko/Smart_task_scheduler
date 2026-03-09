@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from typing import Mapping
+from typing import Callable, Mapping
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -23,6 +23,7 @@ class PomodoroController(QObject):
             mode: max(1, int(minutes)) * 60 for mode, minutes in mode_minutes.items()
         }
         self._long_break_interval = max(2, int(long_break_interval))
+        self._start_guard: Callable[[], bool] | None = None
 
         self._ticker = QTimer(self)
         self._ticker.setInterval(1000)
@@ -34,6 +35,9 @@ class PomodoroController(QObject):
 
     def duration_for_mode(self, mode: TimerMode) -> int:
         return self._durations_seconds[mode]
+
+    def set_start_guard(self, guard: Callable[[], bool] | None) -> None:
+        self._start_guard = guard
 
     def update_configuration(
         self,
@@ -67,6 +71,9 @@ class PomodoroController(QObject):
 
     def start(self) -> None:
         if self._state.status is TimerStatus.RUNNING:
+            return
+
+        if self._start_guard is not None and not self._start_guard():
             return
 
         if self._state.remaining_seconds <= 0:

@@ -72,6 +72,52 @@ def _theme_tokens(theme_name: str) -> dict[str, str]:
             "accent": "#8ED8A8",
             "window_ctrl": "#EDF8F1",
         },
+        "sunset": {
+            "bg_from": "#5B3F66",
+            "bg_to": "#45314F",
+            "title_bar": "rgba(47, 28, 55, 0.62)",
+            "text_main": "#FFF3E9",
+            "text_soft": "#F6DCC6",
+            "sidebar_bg": "rgba(80, 51, 88, 0.42)",
+            "sidebar_border": "rgba(255, 229, 205, 0.24)",
+            "card_rgb": "151, 96, 110",
+            "card_border": "rgba(255, 228, 208, 0.26)",
+            "mode_checked": "rgba(40, 20, 35, 0.34)",
+            "mode_hover": "rgba(255, 255, 255, 0.12)",
+            "shell_bg": "rgba(255, 255, 255, 0.05)",
+            "shell_border": "rgba(255, 239, 224, 0.16)",
+            "primary_bg": "#FFF0E5",
+            "primary_fg": "#8A4F5A",
+            "secondary_bg": "rgba(255, 255, 255, 0.17)",
+            "secondary_border": "rgba(255, 245, 236, 0.24)",
+            "secondary_fg": "#FFF6F0",
+            "danger_bg": "rgba(219, 90, 97, 0.92)",
+            "accent": "#FFC281",
+            "window_ctrl": "#FFF6F0",
+        },
+        "graphite": {
+            "bg_from": "#2F3640",
+            "bg_to": "#242B33",
+            "title_bar": "rgba(25, 31, 39, 0.68)",
+            "text_main": "#ECF3FA",
+            "text_soft": "#CCD8E5",
+            "sidebar_bg": "rgba(36, 45, 56, 0.48)",
+            "sidebar_border": "rgba(211, 226, 240, 0.20)",
+            "card_rgb": "75, 96, 116",
+            "card_border": "rgba(211, 226, 240, 0.24)",
+            "mode_checked": "rgba(15, 20, 27, 0.42)",
+            "mode_hover": "rgba(255, 255, 255, 0.10)",
+            "shell_bg": "rgba(255, 255, 255, 0.05)",
+            "shell_border": "rgba(211, 226, 240, 0.15)",
+            "primary_bg": "#EAF1F8",
+            "primary_fg": "#355D7E",
+            "secondary_bg": "rgba(255, 255, 255, 0.15)",
+            "secondary_border": "rgba(255, 255, 255, 0.22)",
+            "secondary_fg": "#ECF3FA",
+            "danger_bg": "rgba(214, 87, 95, 0.90)",
+            "accent": "#88BEEA",
+            "window_ctrl": "#ECF3FA",
+        },
     }
     return themes.get(theme_name, themes["ocean"])
 
@@ -292,14 +338,14 @@ QPushButton#linkButton:hover {{
 
 #cycleLabel {{
     color: {tokens["text_main"]};
-    font-size: 24px;
-    font-weight: 500;
+    font-size: 30px;
+    font-weight: 600;
 }}
 
 #statusLabel {{
     color: {tokens["text_main"]};
-    font-size: 18px;
-    font-weight: 500;
+    font-size: 24px;
+    font-weight: 600;
 }}
 
 #planningCard,
@@ -343,6 +389,169 @@ QPushButton#linkButton:hover {{
 #settingsPageHint {{
     color: {tokens["text_main"]};
     font-size: 19px;
+}}
+
+QPushButton#planningActionButton,
+QPushButton#planningHeaderButton {{
+    background: {tokens["secondary_bg"]};
+    border: 1px solid {tokens["secondary_border"]};
+    border-radius: 8px;
+    color: {tokens["text_main"]};
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 46px;
+    padding: 8px 14px;
+}}
+
+QPushButton#planningArrowButton {{
+    background: {tokens["secondary_bg"]};
+    border: 1px solid {tokens["secondary_border"]};
+    border-radius: 10px;
+    color: {tokens["text_main"]};
+    font-size: 32px;
+    font-weight: 700;
+    min-width: 82px;
+    min-height: 52px;
+    padding: 0px 10px;
+}}
+
+QPushButton#planningActionButton:hover,
+QPushButton#planningHeaderButton:hover {{
+    background: rgba(255, 255, 255, 0.24);
+}}
+
+QPushButton#planningActionButton:focus,
+QPushButton#planningArrowButton:focus,
+QPushButton#planningIconButton:focus {{
+    outline: none;
+}}
+
+QPushButton#planningArrowButton:hover {{
+    background: rgba(255, 255, 255, 0.24);
+}}
+
+#planningWeekTitle {{
+    color: {tokens["text_main"]};
+    font-size: 32px;
+    font-weight: 800;
+}}
+
+#planningWeekTable {{
+    background: rgba(0, 0, 0, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    gridline-color: rgba(255, 255, 255, 0.14);
+    color: {tokens["text_main"]};
+    selection-background-color: rgba(255, 255, 255, 0.18);
+    selection-color: {tokens["text_main"]};
+    font-size: 17px;
+    alternate-background-color: rgba(255, 255, 255, 0.04);
+}}
+
+#planningWeekTable QHeaderView::section {{
+    background: rgba({tokens["card_rgb"]}, 236);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    color: rgba(255, 247, 247, 0.98);
+    font-size: 14px;
+    font-weight: 800;
+    padding: 9px 8px;
+}}
+
+#planningWeekTable QHeaderView::section:focus {{
+    outline: none;
+}}
+
+#planningWeekTable QTableCornerButton::section {{
+    background: rgba({tokens["card_rgb"]}, 236);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+}}
+
+#planningWeekTable {{
+    font-size: 17px;
+    outline: none;
+}}
+
+#planningWeekTable::item {{
+    padding: 8px;
+    border: 0px;
+}}
+
+#planningWeekTable::item:focus {{
+    outline: none;
+}}
+
+QPushButton#planningIconButton {{
+    background: rgba(111, 26, 40, 0.60);
+    border: 1px solid rgba(255, 236, 236, 0.28);
+    border-radius: 8px;
+}}
+
+QPushButton#planningIconButton:hover {{
+    background: rgba(141, 38, 55, 0.82);
+    border-color: rgba(255, 236, 236, 0.36);
+}}
+
+QPushButton#planningIconButton:checked {{
+    background: rgba(186, 56, 79, 0.92);
+    border-color: rgba(255, 235, 235, 0.48);
+}}
+
+QLabel#planningHelpText {{
+    color: rgba(255, 241, 241, 0.86);
+    font-size: 13px;
+    font-weight: 500;
+}}
+
+QLabel#planningLegendText {{
+    color: rgba(255, 247, 247, 0.92);
+    font-size: 13px;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 7px;
+    padding: 5px 10px;
+}}
+
+QDialog#planningTaskDialog {{
+    background: rgba({tokens["card_rgb"]}, 246);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 12px;
+}}
+
+QLabel#planningTaskLabel {{
+    color: {tokens["text_main"]};
+    font-size: 15px;
+    font-weight: 700;
+}}
+
+QLineEdit#planningTaskInput,
+QSpinBox#planningTaskInput {{
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: 8px;
+    color: {tokens["text_main"]};
+    font-size: 15px;
+    padding: 8px 10px;
+}}
+
+QSpinBox#planningTaskInput::up-button,
+QSpinBox#planningTaskInput::down-button {{
+    width: 18px;
+}}
+
+QDialog#planningTaskDialog QPushButton {{
+    background: {tokens["secondary_bg"]};
+    border: 1px solid {tokens["secondary_border"]};
+    border-radius: 8px;
+    color: {tokens["text_main"]};
+    font-size: 14px;
+    font-weight: 600;
+    min-height: 34px;
+    padding: 6px 12px;
+}}
+
+QDialog#planningTaskDialog QPushButton:hover {{
+    background: rgba(255, 255, 255, 0.24);
 }}
 
 #settingsPageIcon {{
@@ -423,6 +632,14 @@ QPushButton#settingsResetButton:hover {{
 QStatusBar {{
     background: transparent;
     color: {tokens["text_main"]};
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 30px;
+}}
+
+QStatusBar QLabel {{
+    font-size: 16px;
+    font-weight: 600;
 }}
 
 #floatingRoot {{
