@@ -1,35 +1,46 @@
 ﻿from __future__ import annotations
 
+from datetime import date, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 from PySide6.QtCore import QSignalBlocker, QSize, Qt
-from PySide6.QtGui import QColor, QIcon, QPixmap
+from PySide6.QtGui import QColor, QIcon, QPaintEvent, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QCheckBox,
     QComboBox,
     QFrame,
     QFormLayout,
     QGridLayout,
+    QHeaderView,
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QDialog,
+    QDialogButtonBox,
     QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
     QSpinBox,
     QStackedWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from app.core.pomodoro_controller import PomodoroController
+from app.core.planning_state_manager import PlanningStateManager
 from app.core.settings_manager import AppSettings, SettingsManager
 from app.core.timer_state import TimerMode, TimerSnapshot, TimerStatus
 from app.ui.circular_timer import CircularTimerWidget
 from app.ui.floating_timer import FloatingTimerWindow
 from app.ui.styles import build_app_stylesheet
+from app.ui.week_header import WeekHeader
 from app.ui.window_drag import DragHandleFrame
 from app.utils.audio_alert import play_completion_alert
 from app.utils.time_format import format_seconds
@@ -52,6 +63,49 @@ class NoWheelComboBox(QComboBox):
         event.ignore()
 
 
+class PlanningWeekTable(QTableWidget):
+    """QTableWidget with full-height highlighted day column overlay."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._highlighted_column: int | None = None
+
+    def set_highlighted_column(self, column: int | None) -> None:
+        normalized = int(column) if isinstance(column, int) and column >= 0 else None
+        if normalized == self._highlighted_column:
+            return
+        self._highlighted_column = normalized
+        self.viewport().update()
+
+    def paintEvent(self, event: QPaintEvent) -> None:  # type: ignore[override]
+        super().paintEvent(event)
+        if self._highlighted_column is None:
+            return
+        if self._highlighted_column >= self.columnCount():
+            return
+
+        header = self.horizontalHeader()
+        x = header.sectionViewportPosition(self._highlighted_column)
+        width = header.sectionSize(self._highlighted_column)
+        if width <= 0:
+            return
+
+        viewport_rect = self.viewport().rect()
+        if x > viewport_rect.right() or (x + width) < viewport_rect.left():
+            return
+
+        painter = QPainter(self.viewport())
+        painter.setRenderHint(QPainter.Antialiasing, False)
+
+        painter.fillRect(x, viewport_rect.top(), width, viewport_rect.height(), QColor(242, 94, 126, 82))
+        border_pen = QPen(QColor(255, 182, 199, 210))
+        border_pen.setWidth(2)
+        painter.setPen(border_pen)
+        painter.drawLine(x, viewport_rect.top(), x, viewport_rect.bottom())
+        painter.drawLine(x + width - 1, viewport_rect.top(), x + width - 1, viewport_rect.bottom())
+        painter.end()
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -68,6 +122,13 @@ class MainWindow(QMainWindow):
         self._sparkles_source = self._load_svg("sparkles.svg")
         self._display_total_seconds = self._controller.duration_for_mode(self._controller.state.mode)
         self._last_mode = self._controller.state.mode
+        self._today = date.today()
+        self._planning_week_start = self._today - timedelta(days=self._today.weekday())
+        self._planning_store = PlanningStateManager()
+        self._planning_tasks: list[dict[str, str]] = []
+        self._planning_excluded_cells_by_week: dict[str, dict[str, set[int]]] = {}
+        self._planning_selected_task_id: str | None = None
+        self._load_planning_state()
 
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
         self.setWindowTitle("Фокус-таймер Pomodoro")
@@ -83,6 +144,7 @@ class MainWindow(QMainWindow):
         self._controller.state.changed.connect(self._on_state_changed)
         self._controller.session_completed.connect(self._on_session_completed)
         self._on_state_changed(self._controller.state.snapshot())
+        self._update_planning_week_labels()
         self._apply_responsive_fonts()
 
     def _load_svg(self, filename: str) -> QPixmap:
@@ -311,31 +373,346 @@ class MainWindow(QMainWindow):
     def _build_planning_page(self) -> QWidget:
         page = QWidget(self)
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addStretch(1)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(10)
 
-        box = QFrame(page)
-        box.setObjectName("planningCard")
-        box.setMaximumWidth(760)
+        card = QFrame(page)
+        card.setObjectName("planningCard")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(24, 20, 24, 20)
+        card_layout.setSpacing(12)
 
-        box_layout = QVBoxLayout(box)
-        box_layout.setContentsMargins(30, 30, 30, 30)
+        self._week_header = WeekHeader(card)
+        self._week_header.previous_clicked.connect(lambda: self._shift_planning_week(-1))
+        self._week_header.next_clicked.connect(lambda: self._shift_planning_week(1))
 
-        title = QLabel("Планирование", box)
-        title.setObjectName("planningTitle")
-        title.setAlignment(Qt.AlignCenter)
+        self._planning_table = PlanningWeekTable(card)
+        self._planning_table.setObjectName("planningWeekTable")
+        self._planning_table.setColumnCount(8)
+        self._planning_table.setHorizontalHeaderLabels(["Задача", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"])
+        self._planning_table.setRowCount(6)
+        self._planning_table.verticalHeader().setVisible(False)
+        self._planning_table.setAlternatingRowColors(False)
+        self._planning_table.setFocusPolicy(Qt.NoFocus)
+        self._planning_table.setSelectionMode(QAbstractItemView.NoSelection)
+        self._planning_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._planning_table.cellClicked.connect(self._on_planning_cell_clicked)
+        header = self._planning_table.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setDefaultAlignment(Qt.AlignCenter)
+        header.setHighlightSections(False)
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        self._planning_table.setColumnWidth(0, 210)
+        for col in range(1, 8):
+            header.setSectionResizeMode(col, QHeaderView.Stretch)
 
-        text = QLabel("Раздел пока пустой. Здесь будет дневное планирование.", box)
-        text.setObjectName("planningText")
-        text.setAlignment(Qt.AlignCenter)
+        controls = QHBoxLayout()
+        controls.setContentsMargins(0, 0, 0, 0)
+        controls.setSpacing(8)
 
-        box_layout.addWidget(title)
-        box_layout.addSpacing(8)
-        box_layout.addWidget(text)
+        self._planning_add_task_button = QPushButton(card)
+        self._planning_add_task_button.setObjectName("planningIconButton")
+        self._planning_add_task_button.setFocusPolicy(Qt.NoFocus)
+        self._planning_add_task_button.setFixedSize(34, 34)
+        add_icon_path = self._asset_path("add.svg")
+        if add_icon_path.exists():
+            self._planning_add_task_button.setIcon(QIcon(str(add_icon_path)))
+            self._planning_add_task_button.setIconSize(QSize(16, 16))
+        self._planning_add_task_button.clicked.connect(self._on_add_planning_task)
 
-        layout.addWidget(box, alignment=Qt.AlignHCenter)
-        layout.addStretch(1)
+        self._planning_delete_task_button = QPushButton(card)
+        self._planning_delete_task_button.setObjectName("planningIconButton")
+        self._planning_delete_task_button.setFocusPolicy(Qt.NoFocus)
+        self._planning_delete_task_button.setFixedSize(34, 34)
+        delete_icon_path = self._asset_path("delete.svg")
+        if delete_icon_path.exists():
+            self._planning_delete_task_button.setIcon(QIcon(str(delete_icon_path)))
+            self._planning_delete_task_button.setIconSize(QSize(16, 16))
+        self._planning_delete_task_button.clicked.connect(self._delete_selected_planning_task)
+
+        controls.addWidget(self._planning_add_task_button)
+        controls.addWidget(self._planning_delete_task_button)
+        controls.addStretch(1)
+
+        card_layout.addWidget(self._week_header)
+        card_layout.addLayout(controls)
+        card_layout.addWidget(self._planning_table, stretch=1)
+
+        layout.addWidget(card, stretch=1)
+        self._rebuild_planning_table()
         return page
+
+    def _shift_planning_week(self, offset: int) -> None:
+        self._planning_week_start = self._planning_week_start + timedelta(days=7 * int(offset))
+        self._update_planning_week_labels()
+
+    def _go_to_current_planning_week(self) -> None:
+        self._planning_week_start = self._today - timedelta(days=self._today.weekday())
+        self._update_planning_week_labels()
+
+    def _planning_week_key(self) -> str:
+        return self._planning_week_start.isoformat()
+
+    def _excluded_cells_for_current_week(self) -> dict[str, set[int]]:
+        key = self._planning_week_key()
+        if key not in self._planning_excluded_cells_by_week:
+            self._planning_excluded_cells_by_week[key] = {}
+        return self._planning_excluded_cells_by_week[key]
+
+    def _on_planning_cell_clicked(self, row: int, column: int) -> None:
+        if not (0 <= row < len(self._planning_tasks)):
+            return
+        task = self._planning_tasks[row]
+        self._planning_selected_task_id = task["id"]
+        if column == 0:
+            self._refresh_planning_column_visuals()
+            return
+        if not 1 <= column <= 7:
+            return
+        day_index = column - 1
+        week_excluded = self._excluded_cells_for_current_week()
+        task_excluded = week_excluded.setdefault(task["id"], set())
+        if day_index in task_excluded:
+            task_excluded.remove(day_index)
+            if not task_excluded:
+                week_excluded.pop(task["id"], None)
+            self.statusBar().showMessage("Исключение снято для выбранной ячейки.", 2200)
+        else:
+            task_excluded.add(day_index)
+            self.statusBar().showMessage("День исключен только для выбранной задачи.", 2200)
+        self._save_planning_state()
+        self._update_planning_week_labels()
+
+    def _on_add_planning_task(self) -> None:
+        title = self._prompt_planning_task_name()
+        if title is None:
+            return
+        task_id = uuid4().hex
+        self._planning_tasks.append({"id": task_id, "name": title})
+        self._planning_selected_task_id = task_id
+        self._save_planning_state()
+        self._rebuild_planning_table()
+
+    def _prompt_planning_task_name(self) -> str | None:
+        dialog = QDialog(self)
+        dialog.setObjectName("planningTaskDialog")
+        dialog.setWindowTitle("Добавить задачу")
+        dialog.setMinimumWidth(420)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(10)
+
+        caption = QLabel("Название задачи", dialog)
+        caption.setObjectName("planningTaskLabel")
+        edit = QLineEdit(dialog)
+        edit.setObjectName("planningTaskInput")
+        edit.setPlaceholderText("Например: Английский")
+        edit.setFocus()
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+
+        layout.addWidget(caption)
+        layout.addWidget(edit)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.Accepted:
+            return None
+        title = edit.text().strip()
+        if not title:
+            return None
+        return title
+
+    def _rebuild_planning_table(self) -> None:
+        if not hasattr(self, "_planning_table"):
+            return
+        self._planning_table.blockSignals(True)
+        try:
+            rows = len(self._planning_tasks)
+            self._planning_table.setRowCount(rows)
+            for row, task in enumerate(self._planning_tasks):
+                self._planning_table.setRowHeight(row, 52)
+                self._planning_table.setCellWidget(row, 0, None)
+                task_item = QTableWidgetItem(task["name"])
+                task_item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                task_item.setData(Qt.UserRole, task["id"])
+                self._planning_table.setItem(row, 0, task_item)
+                for col in range(1, 8):
+                    item = QTableWidgetItem("")
+                    item.setTextAlignment(Qt.AlignCenter)
+                    self._planning_table.setItem(row, col, item)
+        finally:
+            self._planning_table.blockSignals(False)
+
+        self._refresh_planning_column_visuals()
+
+    def _delete_selected_planning_task(self) -> None:
+        task_id = self._planning_selected_task_id
+        if not task_id:
+            self.statusBar().showMessage("Сначала выберите задачу (ячейку в столбце «Задача»).", 2500)
+            return
+        idx = next((i for i, task in enumerate(self._planning_tasks) if task["id"] == task_id), -1)
+        if idx < 0:
+            return
+        removed_name = self._planning_tasks[idx]["name"]
+        self._planning_tasks.pop(idx)
+
+        for week_map in self._planning_excluded_cells_by_week.values():
+            week_map.pop(task_id, None)
+
+        self._planning_selected_task_id = None
+        self._save_planning_state()
+        self.statusBar().showMessage(f"Задача «{removed_name}» удалена.", 2200)
+        self._rebuild_planning_table()
+
+    def _refresh_planning_column_visuals(self) -> None:
+        if not hasattr(self, "_planning_table"):
+            return
+        week_excluded = self._excluded_cells_for_current_week()
+        current_week_start = self._today - timedelta(days=self._today.weekday())
+        today_day_index = self._today.weekday() if self._planning_week_start == current_week_start else None
+
+        for row in range(self._planning_table.rowCount()):
+            task_item = self._planning_table.item(row, 0)
+            task_id = ""
+            is_selected = False
+            if task_item is not None:
+                task_id = str(task_item.data(Qt.UserRole) or "")
+                is_selected = task_id == self._planning_selected_task_id
+                task_item.setForeground(QColor(255, 250, 250, 248))
+                task_item.setBackground(QColor(142, 26, 52, 242) if is_selected else QColor(0, 0, 0, 28))
+                task_font = task_item.font()
+                task_font.setPointSize(11 if is_selected else 10)
+                task_font.setBold(is_selected)
+                task_item.setFont(task_font)
+            for day_idx in range(7):
+                col = day_idx + 1
+                item = self._planning_table.item(row, col)
+                if item is None:
+                    continue
+                is_today_column = today_day_index is not None and day_idx == today_day_index
+                task_excluded_days = week_excluded.get(task_id, set())
+                if day_idx in task_excluded_days:
+                    item.setBackground(QColor(140, 28, 54, 245) if is_today_column else QColor(112, 16, 34, 236))
+                    item.setForeground(QColor(255, 240, 240, 245))
+                    cross_font = item.font()
+                    cross_font.setBold(True)
+                    cross_font.setPointSize(20)
+                    item.setFont(cross_font)
+                    item.setText("✕")
+                elif is_today_column:
+                    item.setBackground(QColor(230, 90, 122, 248) if is_selected else QColor(220, 82, 112, 230))
+                    item.setForeground(QColor(255, 248, 248, 255))
+                    normal_font = item.font()
+                    normal_font.setBold(is_selected)
+                    normal_font.setPointSize(11 if is_selected else 10)
+                    item.setFont(normal_font)
+                    item.setText("")
+                else:
+                    item.setBackground(QColor(136, 28, 50, 196) if is_selected else QColor(0, 0, 0, 24))
+                    item.setForeground(QColor(255, 246, 246, 230))
+                    normal_font = item.font()
+                    normal_font.setBold(is_selected)
+                    normal_font.setPointSize(11 if is_selected else 10)
+                    item.setFont(normal_font)
+                    item.setText("")
+
+    def _update_planning_week_labels(self) -> None:
+        if not hasattr(self, "_week_header"):
+            return
+        week_end = self._planning_week_start + timedelta(days=6)
+        is_current_week = self._planning_week_start == (self._today - timedelta(days=self._today.weekday()))
+        self._week_header.set_week_range(self._planning_week_start, week_end, is_current_week=is_current_week)
+        headers = ["Задача"]
+        day_short = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+        current_week_start = self._today - timedelta(days=self._today.weekday())
+        today_index = self._today.weekday() if self._planning_week_start == current_week_start else None
+        for idx, day_name in enumerate(day_short):
+            d = self._planning_week_start + timedelta(days=idx)
+            headers.append(f"{day_name} ({d.strftime('%d.%m')})")
+
+        for col, label in enumerate(headers):
+            header_item = self._planning_table.horizontalHeaderItem(col)
+            if header_item is None:
+                header_item = QTableWidgetItem()
+                self._planning_table.setHorizontalHeaderItem(col, header_item)
+            header_item.setText(label)
+            header_item.setTextAlignment(Qt.AlignCenter)
+
+            font = header_item.font()
+            if col == 0:
+                header_item.setBackground(QColor(126, 35, 58, 235))
+                header_item.setForeground(QColor(255, 245, 245, 250))
+                font.setBold(True)
+                font.setPointSize(12)
+            elif today_index is not None and col == today_index + 1:
+                header_item.setBackground(QColor(220, 84, 114, 245))
+                header_item.setForeground(QColor(255, 250, 250, 255))
+                font.setBold(True)
+                font.setPointSize(12)
+            else:
+                header_item.setBackground(QColor(154, 52, 79, 220))
+                header_item.setForeground(QColor(255, 244, 244, 240))
+                font.setBold(True)
+                font.setPointSize(11)
+            header_item.setFont(font)
+
+        self._planning_table.set_highlighted_column(today_index + 1 if today_index is not None else None)
+        self._refresh_planning_column_visuals()
+
+    def _load_planning_state(self) -> None:
+        raw = self._planning_store.load()
+        tasks_raw = raw.get("tasks", [])
+        excluded_raw = raw.get("excluded_cells", {})
+
+        loaded_tasks: list[dict[str, str]] = []
+        if isinstance(tasks_raw, list):
+            for item in tasks_raw:
+                if isinstance(item, dict):
+                    task_id = str(item.get("id") or uuid4().hex)
+                    task_name = str(item.get("name") or "").strip()
+                    if task_name:
+                        loaded_tasks.append({"id": task_id, "name": task_name})
+                elif isinstance(item, str):
+                    name = item.strip()
+                    if name:
+                        loaded_tasks.append({"id": uuid4().hex, "name": name})
+        self._planning_tasks = loaded_tasks
+
+        normalized_excluded: dict[str, dict[str, set[int]]] = {}
+        if isinstance(excluded_raw, dict):
+            for week_key, week_map in excluded_raw.items():
+                if not isinstance(week_map, dict):
+                    continue
+                week_out: dict[str, set[int]] = {}
+                for task_id, day_list in week_map.items():
+                    if not isinstance(day_list, list):
+                        continue
+                    day_set = {int(v) for v in day_list if isinstance(v, int) and 0 <= int(v) <= 6}
+                    if day_set:
+                        week_out[str(task_id)] = day_set
+                if week_out:
+                    normalized_excluded[str(week_key)] = week_out
+        self._planning_excluded_cells_by_week = normalized_excluded
+
+    def _save_planning_state(self) -> None:
+        excluded_serialized: dict[str, dict[str, list[int]]] = {}
+        for week_key, week_map in self._planning_excluded_cells_by_week.items():
+            if not week_map:
+                continue
+            excluded_serialized[week_key] = {
+                task_id: sorted(list(days))
+                for task_id, days in week_map.items()
+                if days
+            }
+        self._planning_store.save(
+            {
+                "tasks": self._planning_tasks,
+                "excluded_cells": excluded_serialized,
+            }
+        )
 
     def _build_settings_page(self) -> QWidget:
         page = QWidget(self)
@@ -854,3 +1231,4 @@ class MainWindow(QMainWindow):
         if self._floating_window is not None:
             self._floating_window.close()
         super().closeEvent(event)
+
