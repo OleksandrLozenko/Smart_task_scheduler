@@ -1,0 +1,19 @@
+{
+  "pomodoro_minutes": 25,
+  "short_break_minutes": 5,
+  "long_break_minutes": 15,
+  "long_break_interval": 3,
+  "theme_name": "rose",
+  "launch_maximized": true,
+  "show_sidebar_icons": true,
+  "main_start_button_height": 48,
+  "main_timer_scale_percent": 92,
+  "main_card_opacity_percent": 94,
+  "always_on_top_default": true,
+  "floating_opacity_percent": 60,
+  "floating_pin_button_size": 37,
+  "floating_blink_enabled": true,
+  "floating_blink_threshold_seconds": 3,
+  "auto_start_breaks": false,
+  "auto_start_pomodoros": false
+}
