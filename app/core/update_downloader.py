@@ -25,7 +25,7 @@ def _read_local_source(parsed) -> tuple[object, int | None]:
     raw_path = f"//{parsed.netloc}{parsed.path}" if parsed.netloc else parsed.path
     local_path = Path(url2pathname(raw_path))
     if not local_path.exists() or not local_path.is_file():
-        raise UpdateDownloadError("????????? ????? ?????????? ?? ??????.")
+        raise UpdateDownloadError("Локальный файл пакета обновления не найден.")
     try:
         size = local_path.stat().st_size
     except OSError:
@@ -33,7 +33,7 @@ def _read_local_source(parsed) -> tuple[object, int | None]:
     try:
         stream = local_path.open("rb")
     except OSError as exc:
-        raise UpdateDownloadError("?? ??????? ??????? ????????? ????? ??????????.") from exc
+        raise UpdateDownloadError("Не удалось открыть локальный файл обновления.") from exc
     return stream, size
 
 
@@ -48,13 +48,13 @@ def _read_remote_source(url: str, timeout_seconds: int) -> tuple[object, int | N
     try:
         response = urlopen(request, timeout=max(4, int(timeout_seconds)))
     except HTTPError as exc:
-        raise UpdateDownloadError(f"?????? ?????? HTTP {exc.code}.") from exc
+        raise UpdateDownloadError(f"Сервер обновлений вернул HTTP {exc.code}.") from exc
     except URLError as exc:
-        raise UpdateDownloadError("?? ??????? ???????????? ? ??????? ??????????.") from exc
+        raise UpdateDownloadError("Не удалось подключиться к серверу обновлений.") from exc
     except TimeoutError as exc:
-        raise UpdateDownloadError("????????? ????? ???????? ???????? ??????????.") from exc
+        raise UpdateDownloadError("Истекло время ожидания ответа сервера обновлений.") from exc
     except OSError as exc:
-        raise UpdateDownloadError("??????? ?????? ??? ???????? ??????????.") from exc
+        raise UpdateDownloadError("Сетевая ошибка при скачивании обновления.") from exc
 
     header = response.headers.get("Content-Length", "").strip()
     total: int | None = None
@@ -77,12 +77,12 @@ def download_update_package(
 ) -> DownloadedPackage:
     url = str(download_url or "").strip()
     if not url:
-        raise UpdateDownloadError("URL ?????? ?????????? ?? ?????.")
+        raise UpdateDownloadError("URL пакета обновления не указан.")
 
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
     if scheme not in {"http", "https", "file"}:
-        raise UpdateDownloadError("???????????? URL ??????. ??????????? http(s):// ??? file://.")
+        raise UpdateDownloadError("Неподдерживаемый URL пакета. Используйте http(s):// или file://.")
 
     destination = Path(destination_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -125,9 +125,9 @@ def download_update_package(
     except UpdateDownloadError:
         raise
     except OSError as exc:
-        raise UpdateDownloadError("?????? ?????? ?????? ?????????? ?? ????.") from exc
+        raise UpdateDownloadError("Ошибка записи пакета обновления на диск.") from exc
     except Exception as exc:  # defensive guard for worker thread
-        raise UpdateDownloadError("?? ??????? ??????? ????? ??????????.") from exc
+        raise UpdateDownloadError("Не удалось скачать файл обновления.") from exc
     finally:
         try:
             if temp_file.exists():

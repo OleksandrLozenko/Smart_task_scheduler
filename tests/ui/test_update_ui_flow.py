@@ -202,7 +202,7 @@ class UpdateUiFlowTests(unittest.TestCase):
         self.assertIn("Added footer banner.", details_text)
         self.assertIn("Improved status rendering.", details_text)
 
-    def test_install_button_enabled_only_for_installable_update(self) -> None:
+    def test_install_button_enabled_for_available_update_and_marks_unavailable_reason(self) -> None:
         self.window._update_check_origin = "auto"
         self.window._update_check_show_popups = False
         self.window._on_update_check_finished(
@@ -213,13 +213,16 @@ class UpdateUiFlowTests(unittest.TestCase):
             )
         )
         self._app.processEvents()
-        self.assertFalse(self.window._updates_install_button.isEnabled())
+        self.assertTrue(self.window._updates_install_button.isEnabled())
+        self.assertIn("недоступно", self.window._updates_install_button.text().lower())
+        self.assertTrue(self.window._updates_install_button.toolTip())
 
         self.window._on_update_check_finished(
             self._result(latest_version="0.7.0", update_available=True)
         )
         self._app.processEvents()
         self.assertTrue(self.window._updates_install_button.isEnabled())
+        self.assertEqual(self.window._updates_install_button.toolTip(), "")
 
 
 if __name__ == "__main__":

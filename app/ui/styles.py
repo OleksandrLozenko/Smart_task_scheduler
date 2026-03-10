@@ -823,6 +823,12 @@ QPushButton#settingsPreviewButton:hover {{
     background: rgba(255, 255, 255, 0.28);
 }}
 
+QPushButton#settingsPreviewButton:disabled {{
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: rgba(255, 255, 255, 0.55);
+}}
+
 #updateFooter {{
     background: rgba(0, 0, 0, 0.20);
     border-top: 1px solid rgba(255, 255, 255, 0.18);

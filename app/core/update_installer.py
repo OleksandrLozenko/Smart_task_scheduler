@@ -50,7 +50,7 @@ def _build_restart_command(target_dir: Path) -> list[str]:
     python_exe = Path(sys.executable).resolve()
     main_py = target_dir / "main.py"
     if not main_py.exists():
-        raise UpdateInstallError("?? ?????? main.py ??? ??????????? ??????????.")
+        raise UpdateInstallError("Файл main.py не найден в каталоге приложения.")
     return [str(python_exe), str(main_py)]
 
 
@@ -59,24 +59,24 @@ def _copy_updater_to_session(*, target_dir: Path, session_dir: Path) -> list[str
         updater_source = target_dir / "FlowGridUpdater.exe"
         if not updater_source.exists():
             raise UpdateInstallError(
-                "FlowGridUpdater.exe ?? ?????? ????? ? ???????????. "
-                "???????????? ?????????? ? updater ? ?????????."
+                "FlowGridUpdater.exe не найден рядом с приложением. "
+                "Для установки обновления добавьте updater в пакет сборки."
             )
         updater_run = session_dir / "FlowGridUpdater.exe"
         try:
             shutil.copy2(updater_source, updater_run)
         except OSError as exc:
-            raise UpdateInstallError("?? ??????? ??????????? updater ??? ???????.") from exc
+            raise UpdateInstallError("Не удалось подготовить updater для запуска.") from exc
         return [str(updater_run)]
 
     updater_source = _project_root() / "tools" / "updater.py"
     if not updater_source.exists():
-        raise UpdateInstallError("?? ?????? tools/updater.py ??? ??????? ?????????.")
+        raise UpdateInstallError("Файл tools/updater.py не найден для режима разработки.")
     updater_run = session_dir / "updater.py"
     try:
         shutil.copy2(updater_source, updater_run)
     except OSError as exc:
-        raise UpdateInstallError("?? ??????? ??????????? updater script.") from exc
+        raise UpdateInstallError("Не удалось подготовить updater script.") from exc
     return [str(Path(sys.executable).resolve()), str(updater_run)]
 
 
@@ -159,4 +159,4 @@ def launch_updater(
             creationflags=creationflags,
         )
     except OSError as exc:
-        raise UpdateInstallError("?? ??????? ????????? updater ???????.") from exc
+        raise UpdateInstallError("Не удалось запустить updater процесс.") from exc

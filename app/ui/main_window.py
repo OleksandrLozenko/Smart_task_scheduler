@@ -338,9 +338,6 @@ class MainWindow(QMainWindow):
         self._settings = settings
         self._settings_manager = settings_manager
         self._app_version = app_version
-        if str(self._settings.updates_manifest_url or "").strip().lower().startswith("file://"):
-            self._settings.updates_manifest_url = DEFAULT_UPDATE_MANIFEST_URL
-            self._settings_manager.save(self._settings)
         self._floating_window: FloatingTimerWindow | None = None
         self._update_manager = UpdateManager(self)
         self._update_manager.check_started.connect(self._on_update_check_started)
@@ -3746,7 +3743,7 @@ class MainWindow(QMainWindow):
             manifest_url = str(self._settings_updates_manifest_url.text() or "").strip()
         else:
             manifest_url = str(self._settings.updates_manifest_url or "").strip()
-        if manifest_url.lower().startswith("file://"):
+        if not manifest_url:
             manifest_url = DEFAULT_UPDATE_MANIFEST_URL
             if hasattr(self, "_settings_updates_manifest_url"):
                 with QSignalBlocker(self._settings_updates_manifest_url):
@@ -3858,12 +3855,25 @@ class MainWindow(QMainWindow):
 
     def _on_install_update_clicked(self) -> None:
         update_result = self._last_update_result
-        if update_result is None or not update_result.is_update_available or not self._has_installable_update_result():
-            QMessageBox.information(
-                self,
-                "Установка обновления",
-                "Сначала выполните проверку и найдите доступное обновление.",
+        if update_result is None:
+            text = "Сначала выполните проверку обновлений."
+            self.statusBar().showMessage(text, 3200)
+            QMessageBox.information(self, "Установка обновления", text)
+            return
+        if not update_result.is_update_available:
+            text = "У вас уже установлена актуальная версия."
+            self.statusBar().showMessage(text, 3200)
+            QMessageBox.information(self, "Установка обновления", text)
+            return
+        install_issue = self._installability_issue(update_result)
+        if install_issue:
+            text = (
+                f"Установка версии {update_result.latest_version} сейчас недоступна.\n\n"
+                f"{install_issue}\n\n"
+                "Нужно обновить манифест: добавить валидные download_url и sha256."
             )
+            self.statusBar().showMessage(install_issue, 4200)
+            QMessageBox.warning(self, "Установка обновления", text)
             return
         if self._update_manager.is_checking():
             self.statusBar().showMessage("Дождитесь завершения проверки обновлений.", 2400)
@@ -3998,31 +4008,68 @@ class MainWindow(QMainWindow):
         result = self._last_update_result
         if result is None or not result.is_update_available:
             return False
-        return bool(str(result.download_url or "").strip()) and bool(str(result.sha256 or "").strip())
+        return self._installability_issue(result) is None
+
+    @staticmethod
+    def _installability_issue(result: UpdateCheckResult) -> str | None:
+        if not result.is_update_available:
+            return "Обновление не найдено."
+        download_url = str(result.download_url or "").strip()
+        sha256 = str(result.sha256 or "").strip().lower()
+        if not download_url and not sha256:
+            return "В манифесте отсутствуют download_url и sha256."
+        if not download_url:
+            return "В манифесте отсутствует download_url."
+        if not sha256:
+            return "В манифесте отсутствует sha256."
+        if not re.fullmatch(r"[0-9a-f]{64}", sha256):
+            return "Поле sha256 в манифесте имеет неверный формат."
+        return None
 
     def _refresh_update_controls(self) -> None:
         if not hasattr(self, "_settings_check_updates_button"):
             return
         is_checking = self._update_manager.is_checking()
         is_installing = self._update_install_manager.is_installing()
+        result = self._last_update_result
+        has_update = bool(result is not None and result.is_update_available)
         can_install = self._has_installable_update_result()
         self._settings_check_updates_button.setEnabled(not is_checking and not is_installing)
         if hasattr(self, "_settings_install_update_button"):
             self._settings_install_update_button.setEnabled(
-                (not is_checking) and (not is_installing) and can_install
+                (not is_checking) and (not is_installing) and has_update
             )
             if is_installing:
                 self._settings_install_update_button.setText("Устанавливаю...")
+            elif has_update and not can_install:
+                self._settings_install_update_button.setText("Скачать и установить (недоступно)")
             else:
                 self._settings_install_update_button.setText("Скачать и установить")
+            tooltip = ""
+            if result is not None and result.is_update_available:
+                issue = self._installability_issue(result)
+                if issue:
+                    tooltip = issue
+            self._settings_install_update_button.setToolTip(tooltip)
         if hasattr(self, "_updates_check_now_button"):
             self._updates_check_now_button.setEnabled(not is_checking and not is_installing)
             self._updates_check_now_button.setText("Проверяю..." if is_checking else "Проверить сейчас")
         if hasattr(self, "_updates_install_button"):
             self._updates_install_button.setEnabled(
-                (not is_checking) and (not is_installing) and can_install
+                (not is_checking) and (not is_installing) and has_update
             )
-            self._updates_install_button.setText("Устанавливаю..." if is_installing else "Установить")
+            if is_installing:
+                self._updates_install_button.setText("Устанавливаю...")
+            elif has_update and not can_install:
+                self._updates_install_button.setText("Установить (недоступно)")
+            else:
+                self._updates_install_button.setText("Установить")
+            tooltip = ""
+            if result is not None and result.is_update_available:
+                issue = self._installability_issue(result)
+                if issue:
+                    tooltip = issue
+            self._updates_install_button.setToolTip(tooltip)
         if hasattr(self, "_updates_install_progress_bar"):
             if is_installing:
                 self._updates_install_progress_bar.setVisible(True)
