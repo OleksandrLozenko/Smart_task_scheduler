@@ -20,6 +20,7 @@ def main() -> int:
             theme_name=settings.theme_name,
             main_card_opacity_percent=settings.main_card_opacity_percent,
             main_start_button_height=settings.main_start_button_height,
+            ui_scale_percent=settings.ui_scale_percent,
         )
     )
 
@@ -44,10 +45,7 @@ def main() -> int:
         settings=settings,
         settings_manager=settings_manager,
     )
-    if settings.launch_maximized:
-        window.showMaximized()
-    else:
-        window.show()
+    window.showMaximized()
 
     return app.exec()
 

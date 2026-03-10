@@ -13,10 +13,11 @@ class AppSettings:
     long_break_minutes: int = 15
     long_break_interval: int = 3
     theme_name: str = "ocean"
-    launch_maximized: bool = False
+    launch_maximized: bool = True
     show_sidebar_icons: bool = True
+    ui_scale_percent: int = 100
     main_start_button_height: int = 48
-    main_timer_scale_percent: int = 92
+    main_timer_scale_percent: int = 106
     main_card_opacity_percent: int = 94
     planning_progress_view: str = "fraction"
     planning_visual_style: str = "circle"
@@ -28,6 +29,11 @@ class AppSettings:
     planning_today_highlight_percent: int = 82
     planning_task_column_width: int = 190
     planning_total_column_width: int = 94
+    planning_daily_limit: int = 16
+    planning_weekly_limit: int = 112
+    planning_confirm_before_timer_switch: bool = True
+    planning_follow_tasks_queue: bool = True
+    tasks_units_compact_mode: bool = False
     timer_sound_id: str = "alarm_classic"
     timer_sound_volume_percent: int = 90
     always_on_top_default: bool = False
@@ -94,10 +100,12 @@ class SettingsManager:
                     parsed = default_value
                 if key == "long_break_interval":
                     normalized[key] = max(2, parsed)
+                elif key == "ui_scale_percent":
+                    normalized[key] = min(130, max(85, parsed))
                 elif key == "main_start_button_height":
                     normalized[key] = min(64, max(38, parsed))
                 elif key == "main_timer_scale_percent":
-                    normalized[key] = min(98, max(65, parsed))
+                    normalized[key] = min(118, max(65, parsed))
                 elif key == "main_card_opacity_percent":
                     normalized[key] = min(100, max(72, parsed))
                 elif key == "planning_visual_max_symbols":
@@ -112,6 +120,10 @@ class SettingsManager:
                     normalized[key] = min(320, max(140, parsed))
                 elif key == "planning_total_column_width":
                     normalized[key] = min(160, max(72, parsed))
+                elif key == "planning_daily_limit":
+                    normalized[key] = min(64, max(1, parsed))
+                elif key == "planning_weekly_limit":
+                    normalized[key] = min(448, max(1, parsed))
                 elif key == "timer_sound_volume_percent":
                     normalized[key] = min(100, max(0, parsed))
                 elif key == "floating_opacity_percent":

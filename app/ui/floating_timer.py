@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import QSignalBlocker, QSize, Qt, QTimer
+from PySide6.QtCore import QSignalBlocker, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QFontMetrics, QIcon
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -21,6 +21,8 @@ from app.utils.time_format import format_seconds
 
 
 class FloatingTimerWindow(QWidget):
+    return_requested = Signal()
+
     def __init__(
         self,
         controller: PomodoroController,
@@ -44,8 +46,8 @@ class FloatingTimerWindow(QWidget):
         self._blink_timer.timeout.connect(self._toggle_blink)
 
         self.setWindowTitle("Плавающий таймер")
-        self.resize(380, 270)
-        self.setMinimumSize(280, 210)
+        self.resize(320, 220)
+        self.setMinimumSize(236, 168)
         self.setObjectName("floatingRoot")
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
 
@@ -72,7 +74,7 @@ class FloatingTimerWindow(QWidget):
         self._action_button = QPushButton("СТАРТ", self._title_bar)
         self._action_button.setObjectName("floatingHeaderAction")
         self._action_button.setMinimumHeight(34)
-        self._action_button.setMinimumWidth(104)
+        self._action_button.setMinimumWidth(70)
         self._action_button.clicked.connect(self._on_action_clicked)
 
         self._pin_button = QPushButton(self._title_bar)
@@ -87,6 +89,12 @@ class FloatingTimerWindow(QWidget):
             self._pin_button.setIcon(QIcon(str(pin_path)))
             self._pin_button.setIconSize(QSize(18, 18))
 
+        self._return_button = QPushButton("↩", self._title_bar)
+        self._return_button.setObjectName("floatingBackButton")
+        self._return_button.setFixedSize(30, 30)
+        self._return_button.setToolTip("Вернуться в главное окно")
+        self._return_button.clicked.connect(self.return_requested.emit)
+
         self._close_button = QPushButton("✕", self._title_bar)
         self._close_button.setObjectName("floatingCtrlButton")
         self._close_button.setFixedSize(30, 30)
@@ -95,6 +103,7 @@ class FloatingTimerWindow(QWidget):
         self._header.addWidget(self._action_button, stretch=0, alignment=Qt.AlignVCenter)
         self._header.addStretch(1)
         self._header.addWidget(self._pin_button, stretch=0, alignment=Qt.AlignVCenter)
+        self._header.addWidget(self._return_button, stretch=0, alignment=Qt.AlignVCenter)
         self._header.addWidget(self._close_button, stretch=0, alignment=Qt.AlignVCenter)
 
         self._time_frame = QWidget(self)
@@ -129,12 +138,14 @@ class FloatingTimerWindow(QWidget):
     def _on_state_changed(self, snapshot: TimerSnapshot) -> None:
         self._time_label.setText(format_seconds(snapshot.remaining_seconds))
 
+        compact = self.width() < 300
         if snapshot.status is TimerStatus.RUNNING:
-            self._action_button.setText("СТОП")
+            self._action_button.setText("■" if compact else "СТОП")
         else:
-            self._action_button.setText("СТАРТ")
+            self._action_button.setText("▶" if compact else "СТАРТ")
 
         self._update_blink_state(snapshot)
+        self._apply_header_compactness()
         self._apply_responsive_fonts()
 
     def apply_visual_settings(
@@ -150,8 +161,13 @@ class FloatingTimerWindow(QWidget):
         icon_size = max(14, size - 14)
         self._pin_button.setFixedSize(size, size)
         self._pin_button.setIconSize(QSize(icon_size, icon_size))
+        self._return_button.setFixedSize(max(28, size - 4), max(28, size - 4))
         self._close_button.setFixedSize(max(28, size - 4), max(28, size - 4))
         self._title_bar.setFixedHeight(max(40, size + 8))
+        required_width = 24 + size + max(28, size - 4) + max(28, size - 4) + 82
+        self.setMinimumWidth(max(236, required_width))
+        if self.width() < self.minimumWidth():
+            self.resize(self.minimumWidth(), self.height())
 
         self._blink_enabled = bool(blink_enabled)
         self._blink_threshold_seconds = max(3, min(20, int(blink_threshold_seconds)))
@@ -159,7 +175,9 @@ class FloatingTimerWindow(QWidget):
         self._opacity_percent = max(35, min(100, int(opacity_percent)))
 
         self._apply_transparency_style()
-        self.setWindowOpacity(self._opacity_percent / 100.0)
+        # Keep window content crisp even on low opacity settings.
+        self.setWindowOpacity(1.0)
+        self._apply_header_compactness()
         self._update_blink_state(self._controller.state.snapshot())
 
     def set_pinned(self, enabled: bool) -> None:
@@ -215,11 +233,11 @@ class FloatingTimerWindow(QWidget):
         return theme_map.get(self._theme_name, theme_map["ocean"])
 
     def _apply_transparency_style(self) -> None:
-        # Keep text crisp: transparency is applied to background layers, not to whole window.
-        background_alpha = int(self._opacity_percent * 255 / 100)
-        focus_alpha = min(210, max(110, 110 + (100 - self._opacity_percent) * 2))
-        frame_border_alpha = min(210, max(95, 95 + (100 - self._opacity_percent)))
-        root_border_alpha = min(190, max(105, 105 + self._opacity_percent // 2))
+        # Keep text/buttons readable: only background layers become transparent.
+        background_alpha = min(246, max(168, int(126 + self._opacity_percent * 1.2)))
+        focus_alpha = min(242, max(176, int(140 + self._opacity_percent * 0.92)))
+        frame_border_alpha = min(230, max(132, int(90 + self._opacity_percent * 0.86)))
+        root_border_alpha = min(216, max(128, int(98 + self._opacity_percent * 0.78)))
         red, green, blue = self._theme_rgb()
 
         self.setStyleSheet(
@@ -245,16 +263,24 @@ class FloatingTimerWindow(QWidget):
         timer_font = QFont(self._time_label.font())
         timer_font.setWeight(QFont.Bold)
 
-        pixel_size = min(96, max(16, int(min(available_h * 0.78, available_w / 2.8))))
-        while pixel_size > 14:
+        pixel_size = min(74, max(14, int(min(available_h * 0.76, available_w / 3.0))))
+        while pixel_size > 12:
             timer_font.setPixelSize(pixel_size)
             metrics = QFontMetrics(timer_font)
             if metrics.horizontalAdvance(sample_text) <= available_w and metrics.height() <= available_h:
                 break
             pixel_size -= 1
 
-        timer_font.setPixelSize(max(14, pixel_size))
+        timer_font.setPixelSize(max(12, pixel_size))
         self._time_label.setFont(timer_font)
+
+    def _apply_header_compactness(self) -> None:
+        controls_width = self._pin_button.width() + self._return_button.width() + self._close_button.width()
+        spacing = self._header.spacing() * 3
+        margins = 24
+        available = max(64, self.width() - controls_width - spacing - margins)
+        preferred = 112 if self.width() >= 360 else 92 if self.width() >= 300 else 72
+        self._action_button.setFixedWidth(max(64, min(preferred, available)))
 
     def moveEvent(self, event) -> None:  # type: ignore[override]
         if self._position_locked and self._locked_pos is not None and not self._forcing_position:
@@ -267,4 +293,5 @@ class FloatingTimerWindow(QWidget):
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
+        self._apply_header_compactness()
         self._apply_responsive_fonts()

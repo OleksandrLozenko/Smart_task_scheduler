@@ -127,10 +127,15 @@ def build_app_stylesheet(
     theme_name: str = "ocean",
     main_card_opacity_percent: int = 94,
     main_start_button_height: int = 48,
+    ui_scale_percent: int = 100,
 ) -> str:
     tokens = _theme_tokens(theme_name)
     card_alpha = int(max(72, min(100, main_card_opacity_percent)) * 255 / 100)
     start_height = max(38, min(64, main_start_button_height))
+    scale = max(85, min(130, ui_scale_percent)) / 100.0
+
+    def fs(px: int, *, min_px: int = 10) -> int:
+        return max(min_px, int(round(px * scale)))
 
     return f"""
 QMainWindow {{
@@ -145,7 +150,17 @@ QMainWindow {{
 QWidget {{
     color: {tokens["text_main"]};
     font-family: "Segoe UI";
-    font-size: 14px;
+    font-size: {fs(15)}px;
+}}
+
+QToolTip {{
+    background: rgba(19, 28, 39, 0.95);
+    color: #F5FBFF;
+    border: 1px solid rgba(176, 220, 246, 0.45);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: {fs(15)}px;
+    font-weight: 600;
 }}
 
 #root {{
@@ -159,7 +174,7 @@ QWidget {{
 
 #windowTitleLabel {{
     color: {tokens["text_main"]};
-    font-size: 16px;
+    font-size: {fs(17)}px;
     font-weight: 700;
 }}
 
@@ -169,7 +184,7 @@ QPushButton#windowCloseButton {{
     border: 1px solid transparent;
     border-radius: 6px;
     color: {tokens["window_ctrl"]};
-    font-size: 14px;
+    font-size: {fs(14)}px;
     font-weight: 600;
 }}
 
@@ -190,7 +205,7 @@ QPushButton#windowCloseButton:hover {{
 
 #sidebarTitle {{
     color: {tokens["text_main"]};
-    font-size: 30px;
+    font-size: {fs(32)}px;
     font-weight: 700;
 }}
 
@@ -201,7 +216,7 @@ QPushButton#windowCloseButton:hover {{
 
 #sidebarSubtitle {{
     color: {tokens["text_soft"]};
-    font-size: 14px;
+    font-size: {fs(15)}px;
     font-weight: 500;
 }}
 
@@ -210,7 +225,7 @@ QPushButton#sidebarNavButton {{
     border: 1px solid transparent;
     border-radius: 12px;
     color: {tokens["text_main"]};
-    font-size: 18px;
+    font-size: {fs(17)}px;
     font-weight: 600;
     text-align: left;
     min-height: 48px;
@@ -231,7 +246,7 @@ QPushButton#sidebarSettingsButton {{
     border: 1px solid {tokens["secondary_border"]};
     border-radius: 12px;
     color: {tokens["text_main"]};
-    font-size: 18px;
+    font-size: {fs(17)}px;
     font-weight: 600;
     text-align: left;
     min-height: 48px;
@@ -258,7 +273,7 @@ QPushButton#modeButton {{
     border: none;
     border-radius: 9px;
     color: {tokens["text_main"]};
-    font-size: 15px;
+    font-size: {fs(16)}px;
     font-weight: 500;
     min-height: 34px;
     padding: 6px 12px;
@@ -292,7 +307,7 @@ QPushButton#timeArrowButton {{
     max-width: 46px;
     min-height: 38px;
     max-height: 38px;
-    font-size: 18px;
+    font-size: {fs(20)}px;
     font-weight: 700;
 }}
 
@@ -305,7 +320,7 @@ QPushButton#primaryButton {{
     border: none;
     border-radius: 8px;
     color: {tokens["primary_fg"]};
-    font-size: 18px;
+    font-size: {fs(19)}px;
     font-weight: 700;
     min-height: {start_height}px;
     padding: 6px 14px;
@@ -338,21 +353,184 @@ QPushButton#linkButton:hover {{
 
 #cycleLabel {{
     color: {tokens["text_main"]};
-    font-size: 30px;
+    font-size: {fs(32)}px;
     font-weight: 600;
 }}
 
 #statusLabel {{
     color: {tokens["text_main"]};
-    font-size: 24px;
+    font-size: {fs(26)}px;
     font-weight: 600;
 }}
 
 #planningCard,
-#settingsPageCard {{
+#settingsPageCard,
+#tasksCard {{
     background: rgba({tokens["card_rgb"]}, {card_alpha});
     border: 1px solid {tokens["card_border"]};
     border-radius: 14px;
+}}
+
+#tasksTitle {{
+    color: white;
+    font-size: {fs(34)}px;
+    font-weight: 700;
+}}
+
+#tasksHint {{
+    color: {tokens["text_main"]};
+    font-size: {fs(18)}px;
+}}
+
+#tasksHintSecondary {{
+    color: rgba(255, 244, 244, 0.86);
+    font-size: {fs(14)}px;
+    font-weight: 500;
+}}
+
+#tasksScrollArea,
+#tasksScrollArea QWidget {{
+    background: transparent;
+}}
+
+#tasksScrollArea QScrollBar:vertical {{
+    background: rgba(255, 255, 255, 0.08);
+    width: 10px;
+    margin: 3px 2px 3px 0;
+    border-radius: 5px;
+}}
+
+#tasksScrollArea QScrollBar::handle:vertical {{
+    background: rgba(255, 255, 255, 0.30);
+    min-height: 28px;
+    border-radius: 5px;
+}}
+
+#tasksScrollArea QScrollBar::add-line:vertical,
+#tasksScrollArea QScrollBar::sub-line:vertical {{
+    height: 0px;
+}}
+
+#tasksDayCard {{
+    background: rgba(0, 0, 0, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+}}
+
+QPushButton#tasksDayHeaderButton {{
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    color: {tokens["text_main"]};
+    font-size: {fs(16)}px;
+    font-weight: 700;
+    text-align: left;
+    min-height: 42px;
+    padding: 6px 10px;
+}}
+
+QPushButton#tasksDayHeaderButton:hover {{
+    background: rgba(255, 255, 255, 0.16);
+}}
+
+#tasksDayEmptyLabel {{
+    color: rgba(255, 242, 242, 0.85);
+    font-size: {fs(14)}px;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px dashed rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    padding: 8px 10px;
+}}
+
+#tasksDayTable {{
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 10px;
+    gridline-color: rgba(255, 255, 255, 0.12);
+    color: {tokens["text_main"]};
+    selection-background-color: rgba(255, 255, 255, 0.16);
+    selection-color: {tokens["text_main"]};
+    font-size: {fs(15)}px;
+    outline: none;
+}}
+
+#tasksDayTable QHeaderView::section {{
+    background: rgba({tokens["card_rgb"]}, 230);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 248, 248, 0.95);
+    font-size: {fs(14)}px;
+    font-weight: 700;
+    padding: 7px 6px;
+}}
+
+#tasksDayTable QHeaderView::section:focus {{
+    outline: none;
+}}
+
+#tasksDayTable::item {{
+    padding: 6px 8px;
+    border: 0px;
+}}
+
+#tasksDayTable::item:focus {{
+    outline: none;
+}}
+
+#tasksDayTable::item:drop-indicator {{
+    border-top: 2px solid {tokens["accent"]};
+}}
+
+QPushButton#tasksUnitActionButton {{
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 6px;
+    color: {tokens["text_main"]};
+    font-size: {fs(12)}px;
+    font-weight: 700;
+}}
+
+QPushButton#tasksUnitEditButton {{
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 6px;
+    color: {tokens["text_main"]};
+    font-size: {fs(12)}px;
+    font-weight: 700;
+    padding: 0px;
+}}
+
+QPushButton#tasksUnitEditButton:hover {{
+    background: rgba(255, 255, 255, 0.22);
+}}
+
+QPushButton#tasksUnitActionButton:hover {{
+    background: rgba(255, 255, 255, 0.22);
+}}
+
+QPushButton#tasksUnitActionButton:disabled,
+QPushButton#tasksUnitEditButton:disabled {{
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.42);
+    border-color: rgba(255, 255, 255, 0.12);
+}}
+
+#tasksPreviewCard {{
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 12px;
+}}
+
+#tasksPreviewTitle {{
+    color: {tokens["accent"]};
+    font-size: {fs(20)}px;
+    font-weight: 700;
+}}
+
+#tasksPreviewText {{
+    color: {tokens["text_main"]};
+    font-size: {fs(15)}px;
+    font-weight: 500;
 }}
 
 #settingsScrollArea,
@@ -381,14 +559,14 @@ QPushButton#linkButton:hover {{
 #planningTitle,
 #settingsPageTitle {{
     color: white;
-    font-size: 34px;
+    font-size: {fs(30)}px;
     font-weight: 700;
 }}
 
 #planningText,
 #settingsPageHint {{
     color: {tokens["text_main"]};
-    font-size: 19px;
+    font-size: {fs(16)}px;
 }}
 
 QPushButton#planningActionButton,
@@ -397,7 +575,7 @@ QPushButton#planningHeaderButton {{
     border: 1px solid {tokens["secondary_border"]};
     border-radius: 8px;
     color: {tokens["text_main"]};
-    font-size: 15px;
+    font-size: {fs(16)}px;
     font-weight: 600;
     min-height: 46px;
     padding: 8px 14px;
@@ -408,7 +586,7 @@ QPushButton#planningArrowButton {{
     border: 1px solid {tokens["secondary_border"]};
     border-radius: 10px;
     color: {tokens["text_main"]};
-    font-size: 32px;
+    font-size: {fs(30)}px;
     font-weight: 700;
     min-width: 82px;
     min-height: 52px;
@@ -432,8 +610,8 @@ QPushButton#planningArrowButton:hover {{
 
 #planningWeekTitle {{
     color: {tokens["text_main"]};
-    font-size: 32px;
-    font-weight: 800;
+    font-size: {fs(26)}px;
+    font-weight: 700;
 }}
 
 #planningWeekTable {{
@@ -444,7 +622,7 @@ QPushButton#planningArrowButton:hover {{
     color: {tokens["text_main"]};
     selection-background-color: rgba(255, 255, 255, 0.18);
     selection-color: {tokens["text_main"]};
-    font-size: 17px;
+    font-size: {fs(15)}px;
     alternate-background-color: rgba(255, 255, 255, 0.04);
 }}
 
@@ -452,8 +630,8 @@ QPushButton#planningArrowButton:hover {{
     background: rgba({tokens["card_rgb"]}, 236);
     border: 1px solid rgba(255, 255, 255, 0.24);
     color: rgba(255, 247, 247, 0.98);
-    font-size: 14px;
-    font-weight: 800;
+    font-size: {fs(14)}px;
+    font-weight: 700;
     padding: 9px 8px;
 }}
 
@@ -467,7 +645,7 @@ QPushButton#planningArrowButton:hover {{
 }}
 
 #planningWeekTable {{
-    font-size: 17px;
+    font-size: {fs(15)}px;
     outline: none;
 }}
 
@@ -481,30 +659,33 @@ QPushButton#planningArrowButton:hover {{
 }}
 
 QPushButton#planningIconButton {{
-    background: rgba(111, 26, 40, 0.60);
-    border: 1px solid rgba(255, 236, 236, 0.28);
-    border-radius: 8px;
+    background: {tokens["secondary_bg"]};
+    border: 1px solid {tokens["secondary_border"]};
+    border-radius: 10px;
+    min-width: 40px;
+    min-height: 40px;
+    color: {tokens["text_main"]};
 }}
 
 QPushButton#planningIconButton:hover {{
-    background: rgba(141, 38, 55, 0.82);
-    border-color: rgba(255, 236, 236, 0.36);
+    background: {tokens["mode_hover"]};
+    border-color: rgba(255, 255, 255, 0.28);
 }}
 
 QPushButton#planningIconButton:checked {{
-    background: rgba(186, 56, 79, 0.92);
-    border-color: rgba(255, 235, 235, 0.48);
+    background: {tokens["mode_checked"]};
+    border-color: rgba(255, 255, 255, 0.30);
 }}
 
 QLabel#planningHelpText {{
     color: rgba(255, 241, 241, 0.86);
-    font-size: 13px;
+    font-size: {fs(14)}px;
     font-weight: 500;
 }}
 
 QLabel#planningLegendText {{
     color: rgba(255, 247, 247, 0.92);
-    font-size: 13px;
+    font-size: {fs(14)}px;
     font-weight: 700;
     background: rgba(0, 0, 0, 0.18);
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -520,7 +701,7 @@ QDialog#planningTaskDialog {{
 
 QLabel#planningTaskLabel {{
     color: {tokens["text_main"]};
-    font-size: 15px;
+    font-size: {fs(16)}px;
     font-weight: 700;
 }}
 
@@ -530,7 +711,7 @@ QSpinBox#planningTaskInput {{
     border: 1px solid rgba(255, 255, 255, 0.26);
     border-radius: 8px;
     color: {tokens["text_main"]};
-    font-size: 15px;
+    font-size: {fs(16)}px;
     padding: 8px 10px;
 }}
 
@@ -544,7 +725,7 @@ QDialog#planningTaskDialog QPushButton {{
     border: 1px solid {tokens["secondary_border"]};
     border-radius: 8px;
     color: {tokens["text_main"]};
-    font-size: 14px;
+    font-size: {fs(15)}px;
     font-weight: 600;
     min-height: 34px;
     padding: 6px 12px;
@@ -566,13 +747,13 @@ QDialog#planningTaskDialog QPushButton:hover {{
 
 #settingsFormBox QLabel {{
     color: {tokens["text_main"]};
-    font-size: 18px;
+    font-size: {fs(18)}px;
     font-weight: 600;
 }}
 
 #settingsSectionTitle {{
     color: {tokens["accent"]};
-    font-size: 22px;
+    font-size: {fs(24)}px;
     font-weight: 700;
     padding-bottom: 8px;
 }}
@@ -583,7 +764,7 @@ QDialog#planningTaskDialog QPushButton:hover {{
     border: 1px solid rgba(255, 255, 255, 0.24);
     color: white;
     border-radius: 8px;
-    font-size: 17px;
+    font-size: {fs(17)}px;
     min-height: 38px;
     padding: 4px 10px;
 }}
@@ -596,7 +777,7 @@ QDialog#planningTaskDialog QPushButton:hover {{
 
 #settingsFormBox QCheckBox {{
     color: {tokens["text_main"]};
-    font-size: 18px;
+    font-size: {fs(17)}px;
 }}
 
 QPushButton#settingsSaveButton,
@@ -612,7 +793,7 @@ QPushButton#settingsSaveButton {{
     background: {tokens["primary_bg"]};
     border: none;
     color: {tokens["primary_fg"]};
-    font-size: 16px;
+    font-size: {fs(17)}px;
     font-weight: 700;
 }}
 
@@ -635,7 +816,7 @@ QPushButton#settingsPreviewButton {{
     border: 1px solid rgba(255, 255, 255, 0.28);
     color: {tokens["text_main"]};
     min-height: 42px;
-    font-size: 15px;
+    font-size: {fs(15)}px;
 }}
 
 QPushButton#settingsPreviewButton:hover {{
@@ -645,13 +826,13 @@ QPushButton#settingsPreviewButton:hover {{
 QStatusBar {{
     background: transparent;
     color: {tokens["text_main"]};
-    font-size: 16px;
+    font-size: {fs(15)}px;
     font-weight: 600;
     min-height: 30px;
 }}
 
 QStatusBar QLabel {{
-    font-size: 16px;
+    font-size: {fs(15)}px;
     font-weight: 600;
 }}
 
@@ -674,7 +855,7 @@ QStatusBar QLabel {{
 
 #floatingTimerLabel {{
     color: white;
-    font-size: 52px;
+    font-size: {fs(48)}px;
     font-weight: 700;
 }}
 
@@ -682,7 +863,7 @@ QPushButton#floatingPrimary {{
     background: {tokens["primary_bg"]};
     border: none;
     color: {tokens["primary_fg"]};
-    font-size: 16px;
+    font-size: {fs(16)}px;
     font-weight: 700;
 }}
 
@@ -695,7 +876,7 @@ QPushButton#floatingHeaderAction {{
     border: 1px solid rgba(255, 255, 255, 0.28);
     border-radius: 9px;
     color: {tokens["text_main"]};
-    font-size: 13px;
+    font-size: {fs(13)}px;
     font-weight: 700;
     padding: 4px 12px;
 }}
@@ -724,13 +905,27 @@ QPushButton#floatingCtrlButton {{
     border: 1px solid transparent;
     border-radius: 6px;
     color: {tokens["window_ctrl"]};
-    font-size: 14px;
+    font-size: {fs(14)}px;
     font-weight: 600;
 }}
 
 QPushButton#floatingCtrlButton:hover {{
     background: {tokens["danger_bg"]};
     border-color: rgba(255, 255, 255, 0.28);
+}}
+
+QPushButton#floatingBackButton {{
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 7px;
+    color: {tokens["window_ctrl"]};
+    font-size: {fs(15)}px;
+    font-weight: 700;
+}}
+
+QPushButton#floatingBackButton:hover {{
+    background: rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.34);
 }}
 
 #floatingSizeGrip {{

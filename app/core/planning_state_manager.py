@@ -16,6 +16,8 @@ class PlanningStateManager:
             "planned_cells": {},
             "done_cells": {},
             "weekly_targets": {},
+            "task_units_by_week": {},
+            "selected_unit_by_week": {},
             "selected_task_id": None,
             "selected_day_index": None,
         }
@@ -36,6 +38,8 @@ class PlanningStateManager:
         planned_cells = raw.get("planned_cells", {})
         done_cells = raw.get("done_cells", {})
         weekly_targets = raw.get("weekly_targets", {})
+        task_units_by_week = raw.get("task_units_by_week", {})
+        selected_unit_by_week = raw.get("selected_unit_by_week", {})
         selected_task_id = raw.get("selected_task_id")
         selected_day_index = raw.get("selected_day_index")
         if not isinstance(tasks, list):
@@ -48,6 +52,10 @@ class PlanningStateManager:
             done_cells = {}
         if not isinstance(weekly_targets, dict):
             weekly_targets = {}
+        if not isinstance(task_units_by_week, dict):
+            task_units_by_week = {}
+        if not isinstance(selected_unit_by_week, dict):
+            selected_unit_by_week = {}
         if selected_task_id is not None and not isinstance(selected_task_id, str):
             selected_task_id = None
         if not isinstance(selected_day_index, int) or not 0 <= int(selected_day_index) <= 6:
@@ -59,6 +67,8 @@ class PlanningStateManager:
             "planned_cells": planned_cells,
             "done_cells": done_cells,
             "weekly_targets": weekly_targets,
+            "task_units_by_week": task_units_by_week,
+            "selected_unit_by_week": selected_unit_by_week,
             "selected_task_id": selected_task_id,
             "selected_day_index": selected_day_index,
         }
