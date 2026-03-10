@@ -132,6 +132,36 @@ python main.py
   3. Закоммитьте и запушьте изменения.
   4. После этого клиенты при проверке увидят новую версию из репозитория.
 
+### Подготовка будущих обновлений (рекомендуемый поток)
+Чтобы не править манифест вручную, используйте скрипт:
+
+```bash
+python tools/prepare_update_release.py --version 0.6.1 --release-notes-file RELEASE_NOTES.md
+```
+
+Что делает скрипт:
+- собирает `zip` из `dist/FlowGrid`,
+- считает `sha256`,
+- обновляет `update_manifest.json` полями:
+  - `latest_version`,
+  - `minimum_supported_version`,
+  - `release_notes`,
+  - `download_url`,
+  - `sha256`,
+  - `published_at`.
+
+По умолчанию `download_url` формируется под GitHub Releases:
+
+`https://github.com/OleksandrLozenko/Smart_task_scheduler/releases/download/v{version}/FlowGrid_portable_{version}.zip`
+
+После запуска скрипта:
+1. Загрузите созданный zip в GitHub Release с тегом `vX.Y.Z`.
+2. Закоммитьте `update_manifest.json` (и при необходимости изменения версии).
+3. Запушьте в `main`.
+
+Если в манифесте версия выше текущей, но `download_url/sha256` пустые или неверные,
+кнопка установки покажет причину и не запустит поврежденный update flow.
+
 ### Пример `update_manifest.json` (already up to date)
 ```json
 {

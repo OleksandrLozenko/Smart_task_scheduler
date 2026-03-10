@@ -1,8 +1,8 @@
 {
-  "latest_version": "0.6.2",
+  "latest_version": "0.6.0",
   "minimum_supported_version": "0.6.0",
-  "release_notes": "UI and update flow improvements.\n- Fixed release notes rendering.\n- Added visual install progress bar.\n- Improved updater restart fallback.",
+  "release_notes": "Текущая версия актуальна.",
   "download_url": "",
   "sha256": "",
-  "published_at": "2026-03-10T18:00:00Z"
+  "published_at": "2026-03-10T18:35:00Z"
 }
