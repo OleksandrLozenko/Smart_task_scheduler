@@ -216,6 +216,23 @@ python -m unittest discover -s tests -v
   - `pyinstaller FlowGridUpdater.spec`
 - Для onedir релиза `FlowGridUpdater.exe` должен лежать рядом с `FlowGrid.exe`.
 
+## Windows: снижение ложных срабатываний антивируса
+- Для релизной сборки в проекте отключен `UPX` во всех `.spec`:
+  - `FlowGrid.spec`
+  - `FlowGridUpdater.spec`
+  - `FlowGrid-OneFile.spec`
+- Рекомендуемый формат дистрибуции: `onedir` (`dist/FlowGrid`) + zip-архив
+  `FlowGrid_portable_X.Y.Z.zip` (а не только one-file exe).
+- One-file сборка чаще дает ложные срабатывания у SmartScreen/Defender из-за
+  самораспаковки во временный каталог.
+- Для минимального количества предупреждений на Windows 10/11 используйте
+  цифровую подпись (Code Signing) для:
+  - `FlowGrid.exe`
+  - `FlowGridUpdater.exe`
+  - установщика (если используете installer).
+- Без цифровой подписи предупреждение "Неизвестный издатель" может появляться,
+  это штатное поведение SmartScreen.
+
 ## Архитектура
 - `app/core` - логика таймера и настройки.
 - `app/ui` - окна интерфейса, стили, компонент заголовка недели.
