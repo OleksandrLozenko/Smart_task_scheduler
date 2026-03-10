@@ -4,10 +4,15 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.core.app_paths import get_app_paths
+from app.core.file_io import atomic_write_text
+
 
 class PlanningStateManager:
-    def __init__(self, path: str | Path = "planner_state.json") -> None:
-        self._path = Path(path)
+    def __init__(self, path: str | Path | None = None) -> None:
+        resolved_path = get_app_paths().planner_state_path if path is None else Path(path)
+        self._path = Path(resolved_path)
+        self._path.parent.mkdir(parents=True, exist_ok=True)
 
     def load(self) -> dict[str, Any]:
         default: dict[str, Any] = {
@@ -72,11 +77,13 @@ class PlanningStateManager:
             "selected_task_id": selected_task_id,
             "selected_day_index": selected_day_index,
         }
-        self.save(normalized)
+        if raw != normalized:
+            self.save(normalized)
         return normalized
 
     def save(self, data: dict[str, Any]) -> None:
-        self._path.write_text(
+        atomic_write_text(
+            self._path,
             json.dumps(data, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )

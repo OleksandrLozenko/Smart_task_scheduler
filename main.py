@@ -4,6 +4,8 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
+from app.core.app_paths import get_app_paths
+from app.core.app_version import APP_VERSION
 from app.core.pomodoro_controller import PomodoroController
 from app.core.settings_manager import SettingsManager
 from app.core.timer_state import TimerMode, TimerState
@@ -13,7 +15,10 @@ from app.ui.styles import build_app_stylesheet
 
 def main() -> int:
     app = QApplication(sys.argv)
-    settings_manager = SettingsManager()
+    app.setApplicationName("FlowGrid")
+    app.setApplicationVersion(APP_VERSION)
+    app_paths = get_app_paths()
+    settings_manager = SettingsManager(app_paths.settings_path)
     settings = settings_manager.load()
     app.setStyleSheet(
         build_app_stylesheet(
@@ -44,8 +49,12 @@ def main() -> int:
         controller=controller,
         settings=settings,
         settings_manager=settings_manager,
+        app_version=APP_VERSION,
     )
-    window.showMaximized()
+    if settings.launch_maximized:
+        window.showMaximized()
+    else:
+        window.show()
 
     return app.exec()
 

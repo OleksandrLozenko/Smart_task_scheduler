@@ -823,6 +823,57 @@ QPushButton#settingsPreviewButton:hover {{
     background: rgba(255, 255, 255, 0.28);
 }}
 
+#updateFooter {{
+    background: rgba(0, 0, 0, 0.20);
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+}}
+
+#updateFooterLabel {{
+    color: {tokens["text_main"]};
+    font-size: {fs(15)}px;
+    font-weight: 600;
+}}
+
+QPushButton#updateFooterPrimaryButton,
+QPushButton#updateFooterSecondaryButton {{
+    min-height: 34px;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-weight: 600;
+}}
+
+QPushButton#updateFooterPrimaryButton {{
+    background: {tokens["primary_bg"]};
+    border: none;
+    color: {tokens["primary_fg"]};
+}}
+
+QPushButton#updateFooterPrimaryButton:hover {{
+    background: rgba(255, 255, 255, 0.92);
+}}
+
+QPushButton#updateFooterSecondaryButton {{
+    background: {tokens["secondary_bg"]};
+    border: 1px solid {tokens["secondary_border"]};
+    color: {tokens["secondary_fg"]};
+}}
+
+QPushButton#updateFooterSecondaryButton:hover {{
+    background: rgba(255, 255, 255, 0.24);
+}}
+
+#updatesErrorText {{
+    color: #FFD4D4;
+    font-size: {fs(15)}px;
+    font-weight: 600;
+}}
+
+#updatesWarningText {{
+    color: #FFE9AE;
+    font-size: {fs(15)}px;
+    font-weight: 600;
+}}
+
 QStatusBar {{
     background: transparent;
     color: {tokens["text_main"]};

@@ -5,6 +5,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from app.core.app_paths import get_app_paths
+from app.core.file_io import atomic_write_text
+
 
 @dataclass(slots=True)
 class AppSettings:
@@ -34,6 +37,12 @@ class AppSettings:
     planning_confirm_before_timer_switch: bool = True
     planning_follow_tasks_queue: bool = True
     tasks_units_compact_mode: bool = False
+    updates_manifest_url: str = ""
+    auto_check_updates_on_start: bool = True
+    update_check_interval_hours: int = 12
+    last_update_check_attempt_at: str = ""
+    last_update_check_success_at: str = ""
+    dismissed_update_version: str = ""
     timer_sound_id: str = "alarm_classic"
     timer_sound_volume_percent: int = 90
     always_on_top_default: bool = False
@@ -46,8 +55,10 @@ class AppSettings:
 
 
 class SettingsManager:
-    def __init__(self, path: str | Path = "settings.json") -> None:
-        self._path = Path(path)
+    def __init__(self, path: str | Path | None = None) -> None:
+        resolved_path = get_app_paths().settings_path if path is None else Path(path)
+        self._path = Path(resolved_path)
+        self._path.parent.mkdir(parents=True, exist_ok=True)
 
     @property
     def path(self) -> Path:
@@ -67,14 +78,16 @@ class SettingsManager:
             return settings
 
         settings = self._from_dict(data)
-
-        # Re-save normalized content to keep config stable and editable.
-        self.save(settings)
+        normalized = asdict(settings)
+        if data != normalized:
+            # Persist normalized content only when it actually differs.
+            self.save(settings)
         return settings
 
     def save(self, settings: AppSettings) -> None:
-        self._path.write_text(
-            json.dumps(asdict(settings), indent=2),
+        atomic_write_text(
+            self._path,
+            json.dumps(asdict(settings), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
 
@@ -132,11 +145,16 @@ class SettingsManager:
                     normalized[key] = min(56, max(28, parsed))
                 elif key == "floating_blink_threshold_seconds":
                     normalized[key] = min(20, max(3, parsed))
+                elif key == "update_check_interval_hours":
+                    normalized[key] = min(168, max(1, parsed))
                 else:
                     normalized[key] = max(1, parsed)
                 continue
 
-            normalized[key] = candidate
+            if isinstance(default_value, str):
+                normalized[key] = str(candidate)
+            else:
+                normalized[key] = candidate
 
         allowed_themes = {"ocean", "rose", "forest", "sunset", "graphite"}
         if normalized.get("theme_name") not in allowed_themes:
@@ -163,5 +181,17 @@ class SettingsManager:
         }
         if normalized.get("timer_sound_id") not in allowed_timer_sound_ids:
             normalized["timer_sound_id"] = "alarm_classic"
+        normalized["updates_manifest_url"] = str(
+            normalized.get("updates_manifest_url", "")
+        ).strip()
+        normalized["last_update_check_attempt_at"] = str(
+            normalized.get("last_update_check_attempt_at", "")
+        ).strip()
+        normalized["last_update_check_success_at"] = str(
+            normalized.get("last_update_check_success_at", "")
+        ).strip()
+        normalized["dismissed_update_version"] = str(
+            normalized.get("dismissed_update_version", "")
+        ).strip()
 
         return AppSettings(**normalized)
