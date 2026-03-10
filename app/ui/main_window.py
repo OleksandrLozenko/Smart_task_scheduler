@@ -3774,10 +3774,11 @@ class MainWindow(QMainWindow):
             and int(selected_unit.day_index) == day_index
         ):
             unit_title = self._task_unit_display_title(selected_unit)
-            if str(selected_unit.status) == "done":
-                selected_unit_text = f"{unit_title} (готово). "
-            else:
-                selected_unit_text = f"{unit_title}. "
+            if unit_title and unit_title != task_name:
+                if str(selected_unit.status) == "done":
+                    selected_unit_text = f"{unit_title} (готово). "
+                else:
+                    selected_unit_text = f"{unit_title}. "
 
         if planned <= 0:
             progress_text = f"{selected_unit_text}{day_name}: задайте количество через «Всего»."
