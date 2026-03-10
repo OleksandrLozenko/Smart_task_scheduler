@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+import html
 from pathlib import Path
 import re
 from uuid import uuid4
@@ -28,6 +29,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QStackedWidget,
+    QTextBrowser,
     QTableWidget,
     QTableWidgetItem,
     QLineEdit,
@@ -469,12 +471,12 @@ class MainWindow(QMainWindow):
 
         body = QWidget(root)
         body_layout = QHBoxLayout(body)
-        body_layout.setContentsMargins(20, 14, 20, 20)
-        body_layout.setSpacing(16)
+        body_layout.setContentsMargins(14, 12, 14, 14)
+        body_layout.setSpacing(12)
 
         sidebar = QFrame(body)
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(240)
+        sidebar.setFixedWidth(216)
 
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(15, 15, 15, 15)
@@ -860,7 +862,17 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(0)
 
-        card = QFrame(page)
+        scroll = QScrollArea(page)
+        scroll.setObjectName("settingsScrollArea")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        scroll_content = QWidget(scroll)
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.setSpacing(0)
+
+        card = QFrame(scroll_content)
         card.setObjectName("settingsPageCard")
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(28, 24, 28, 24)
@@ -921,9 +933,23 @@ class MainWindow(QMainWindow):
         self._updates_release_notes_value = QLabel("—", info_box)
         self._updates_release_notes_value.setObjectName("settingsPageHint")
         self._updates_release_notes_value.setWordWrap(True)
+        self._updates_release_notes_value.setVisible(False)
         self._updates_release_notes_value.setTextInteractionFlags(
             Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
         )
+
+        self._updates_release_notes_toggle = QPushButton("Развернуть подробный список", info_box)
+        self._updates_release_notes_toggle.setObjectName("settingsPreviewButton")
+        self._updates_release_notes_toggle.setCheckable(True)
+        self._updates_release_notes_toggle.setChecked(False)
+        self._updates_release_notes_toggle.clicked.connect(self._on_toggle_updates_release_notes)
+
+        self._updates_release_notes_browser = QTextBrowser(info_box)
+        self._updates_release_notes_browser.setObjectName("updatesReleaseNotesBrowser")
+        self._updates_release_notes_browser.setOpenExternalLinks(False)
+        self._updates_release_notes_browser.setReadOnly(True)
+        self._updates_release_notes_browser.setMinimumHeight(190)
+        self._updates_release_notes_browser.setVisible(False)
 
         info_layout.addRow("Текущая версия", self._updates_current_version_value)
         info_layout.addRow("Последняя версия", self._updates_latest_version_value)
@@ -934,8 +960,9 @@ class MainWindow(QMainWindow):
         info_layout.addRow("Статус", self._updates_status_value)
         info_layout.addRow("", self._updates_error_value)
         info_layout.addRow("", self._updates_support_warning)
-        info_layout.addRow("Общее", self._updates_release_summary_value)
-        info_layout.addRow("Подробно", self._updates_release_notes_value)
+        info_layout.addRow("Кратко", self._updates_release_summary_value)
+        info_layout.addRow("", self._updates_release_notes_toggle)
+        info_layout.addRow("", self._updates_release_notes_browser)
 
         actions = QHBoxLayout()
         actions.setContentsMargins(0, 0, 0, 0)
@@ -971,7 +998,9 @@ class MainWindow(QMainWindow):
         card_layout.addWidget(self._updates_install_progress_label)
         card_layout.addWidget(self._updates_install_progress_bar)
 
-        layout.addWidget(card, stretch=1)
+        scroll_layout.addWidget(card)
+        scroll.setWidget(scroll_content)
+        layout.addWidget(scroll, stretch=1)
         return page
 
     def _create_tasks_day_section(self, day_index: int) -> None:
@@ -3131,13 +3160,24 @@ class MainWindow(QMainWindow):
         )
         self._settings_updates_manifest_url.setClearButtonEnabled(True)
 
+        self._settings_updates_enabled = QCheckBox(
+            "Включить систему обновлений",
+            updates_box,
+        )
         self._settings_auto_check_updates_on_start = QCheckBox(
-            "Проверять обновления при запуске (тихо)",
+            "Автопроверка при запуске (только уведомление)",
             updates_box,
         )
         self._settings_update_check_interval_hours = NoWheelSpinBox(updates_box)
         self._settings_update_check_interval_hours.setRange(1, 168)
         self._settings_update_check_interval_hours.setSuffix(" ч")
+        self._settings_updates_auto_install = QCheckBox(
+            "Автоустановка найденного обновления",
+            updates_box,
+        )
+        self._settings_updates_auto_install.setToolTip(
+            "Если включено, после тихой автопроверки новая версия будет устанавливаться автоматически."
+        )
 
         self._settings_check_updates_button = QPushButton("Проверить обновления", updates_box)
         self._settings_check_updates_button.setObjectName("settingsPreviewButton")
@@ -3162,13 +3202,18 @@ class MainWindow(QMainWindow):
         self._settings_update_status.setWordWrap(True)
 
         updates_layout.addRow("Текущая версия", self._settings_app_version_value)
-        updates_layout.addRow("URL манифеста", self._settings_updates_manifest_url)
+        updates_layout.addRow("", self._settings_updates_enabled)
         updates_layout.addRow("", self._settings_auto_check_updates_on_start)
         updates_layout.addRow("Интервал автопроверки", self._settings_update_check_interval_hours)
+        updates_layout.addRow("", self._settings_updates_auto_install)
+        updates_layout.addRow("URL манифеста", self._settings_updates_manifest_url)
         updates_layout.addRow("", self._settings_check_updates_button)
         updates_layout.addRow("", self._settings_install_update_button)
         updates_layout.addRow("", self._settings_open_updates_page_button)
         updates_layout.addRow("", self._settings_update_status)
+
+        self._settings_updates_enabled.toggled.connect(self._sync_updates_settings_controls)
+        self._settings_auto_check_updates_on_start.toggled.connect(self._sync_updates_settings_controls)
 
         main_box = QFrame(card)
         main_box.setObjectName("settingsFormBox")
@@ -3427,8 +3472,10 @@ class MainWindow(QMainWindow):
             self._settings_launch_maximized,
             self._settings_show_sidebar_icons,
             self._settings_updates_manifest_url,
+            self._settings_updates_enabled,
             self._settings_auto_check_updates_on_start,
             self._settings_update_check_interval_hours,
+            self._settings_updates_auto_install,
             self._settings_pomodoro,
             self._settings_short_break,
             self._settings_long_break,
@@ -3473,10 +3520,14 @@ class MainWindow(QMainWindow):
                         widget.setChecked(source_settings.show_sidebar_icons)
                     elif widget is self._settings_updates_manifest_url:
                         widget.setText(source_settings.updates_manifest_url)
+                    elif widget is self._settings_updates_enabled:
+                        widget.setChecked(source_settings.updates_enabled)
                     elif widget is self._settings_auto_check_updates_on_start:
                         widget.setChecked(source_settings.auto_check_updates_on_start)
                     elif widget is self._settings_update_check_interval_hours:
                         widget.setValue(source_settings.update_check_interval_hours)
+                    elif widget is self._settings_updates_auto_install:
+                        widget.setChecked(source_settings.updates_auto_install)
                     elif widget is self._settings_pomodoro:
                         widget.setValue(source_settings.pomodoro_minutes)
                     elif widget is self._settings_short_break:
@@ -3545,6 +3596,7 @@ class MainWindow(QMainWindow):
             self._settings_floating_blink_threshold_seconds.setEnabled(
                 self._settings_floating_blink_enabled.isChecked()
             )
+            self._sync_updates_settings_controls()
             self._on_planning_settings_view_mode_changed()
         finally:
             self._is_populating_settings_form = False
@@ -3553,6 +3605,20 @@ class MainWindow(QMainWindow):
         is_visual = str(self._settings_planning_progress_view.currentData()) == "visual"
         self._settings_planning_visual_style.setEnabled(is_visual)
         self._settings_planning_visual_max_symbols.setEnabled(is_visual)
+
+    def _sync_updates_settings_controls(self) -> None:
+        if not hasattr(self, "_settings_updates_enabled"):
+            return
+        updates_enabled = self._settings_updates_enabled.isChecked()
+        auto_check_enabled = updates_enabled and self._settings_auto_check_updates_on_start.isChecked()
+
+        self._settings_auto_check_updates_on_start.setEnabled(updates_enabled)
+        self._settings_update_check_interval_hours.setEnabled(auto_check_enabled)
+        self._settings_updates_auto_install.setEnabled(updates_enabled)
+        self._settings_updates_manifest_url.setEnabled(updates_enabled)
+        self._settings_check_updates_button.setEnabled(updates_enabled)
+        self._settings_install_update_button.setEnabled(updates_enabled)
+        self._settings_open_updates_page_button.setEnabled(updates_enabled)
 
     def _connect_settings_live_preview(self) -> None:
         if self._settings_live_preview_bound:
@@ -3591,7 +3657,9 @@ class MainWindow(QMainWindow):
         check_boxes = [
             self._settings_launch_maximized,
             self._settings_show_sidebar_icons,
+            self._settings_updates_enabled,
             self._settings_auto_check_updates_on_start,
+            self._settings_updates_auto_install,
             self._settings_planning_auto_switch_to_timer,
             self._settings_planning_confirm_before_switch,
             self._settings_planning_follow_queue,
@@ -3643,8 +3711,10 @@ class MainWindow(QMainWindow):
             planning_follow_tasks_queue=self._settings_planning_follow_queue.isChecked(),
             tasks_units_compact_mode=self._settings_tasks_units_compact_mode.isChecked(),
             updates_manifest_url=str(self._settings_updates_manifest_url.text() or "").strip(),
+            updates_enabled=self._settings_updates_enabled.isChecked(),
             auto_check_updates_on_start=self._settings_auto_check_updates_on_start.isChecked(),
             update_check_interval_hours=self._settings_update_check_interval_hours.value(),
+            updates_auto_install=self._settings_updates_auto_install.isChecked(),
             last_update_check_attempt_at=self._settings.last_update_check_attempt_at,
             last_update_check_success_at=self._settings.last_update_check_success_at,
             dismissed_update_version=self._settings.dismissed_update_version,
@@ -3669,6 +3739,7 @@ class MainWindow(QMainWindow):
             persist=False,
             sync_form=False,
         )
+        self._sync_updates_settings_controls()
         self.statusBar().showMessage(
             "Изменения применены в предпросмотре. Нажмите «Сохранить настройки» для подтверждения.",
             3200,
@@ -3759,6 +3830,8 @@ class MainWindow(QMainWindow):
         return self._now_utc() >= (last_attempt + timedelta(hours=interval_hours))
 
     def _run_startup_update_check_if_due(self) -> None:
+        if not bool(self._settings.updates_enabled):
+            return
         if not bool(self._settings.auto_check_updates_on_start):
             return
         if self._update_manager.is_checking() or self._update_install_manager.is_installing():
@@ -3770,6 +3843,15 @@ class MainWindow(QMainWindow):
         self._start_update_check(origin=_UpdateCheckOrigin.AUTO, show_popups=False)
 
     def _start_update_check(self, *, origin: str, show_popups: bool) -> bool:
+        if not bool(self._settings.updates_enabled):
+            text = "Система обновлений отключена в настройках."
+            self._last_update_error = ""
+            self._refresh_update_ui()
+            self.statusBar().showMessage(text, 2800)
+            if show_popups:
+                QMessageBox.information(self, "Проверка обновлений", text)
+            return False
+
         if self._update_manager.is_checking():
             if show_popups:
                 self.statusBar().showMessage("Проверка обновлений уже выполняется.", 2200)
@@ -3829,10 +3911,22 @@ class MainWindow(QMainWindow):
 
         self._refresh_update_ui()
         if result.is_update_available:
-            self.statusBar().showMessage(
-                f"Найдена новая версия {result.latest_version}.",
-                4500,
+            auto_mode = (
+                self._update_check_origin == _UpdateCheckOrigin.AUTO
+                and bool(self._settings.updates_auto_install)
+                and self._has_installable_update_result()
             )
+            if auto_mode and not self._update_install_manager.is_installing():
+                started = self._update_install_manager.start_install(update_result=result)
+                if started:
+                    self.statusBar().showMessage(
+                        f"Найдена версия {result.latest_version}. Запускаю автоустановку...",
+                        5200,
+                    )
+                    self._refresh_update_ui()
+                    return
+
+            self.statusBar().showMessage(f"Найдена новая версия {result.latest_version}.", 4500)
             return
 
         self.statusBar().showMessage("Установлена актуальная версия приложения.", 3200)
@@ -3854,6 +3948,11 @@ class MainWindow(QMainWindow):
         self._refresh_update_ui()
 
     def _on_install_update_clicked(self) -> None:
+        if not bool(self._settings.updates_enabled):
+            text = "Система обновлений отключена в настройках."
+            self.statusBar().showMessage(text, 2800)
+            QMessageBox.information(self, "Установка обновления", text)
+            return
         update_result = self._last_update_result
         if update_result is None:
             text = "Сначала выполните проверку обновлений."
@@ -4029,15 +4128,24 @@ class MainWindow(QMainWindow):
     def _refresh_update_controls(self) -> None:
         if not hasattr(self, "_settings_check_updates_button"):
             return
+        updates_enabled = bool(self._settings.updates_enabled)
         is_checking = self._update_manager.is_checking()
         is_installing = self._update_install_manager.is_installing()
         result = self._last_update_result
         has_update = bool(result is not None and result.is_update_available)
         can_install = self._has_installable_update_result()
-        self._settings_check_updates_button.setEnabled(not is_checking and not is_installing)
+        self._settings_check_updates_button.setEnabled(
+            updates_enabled and (not is_checking) and (not is_installing)
+        )
+        if not updates_enabled and not is_checking:
+            self._settings_check_updates_button.setText("Обновления отключены")
+        elif is_checking:
+            self._settings_check_updates_button.setText("Проверяю...")
+        else:
+            self._settings_check_updates_button.setText("Проверить обновления")
         if hasattr(self, "_settings_install_update_button"):
             self._settings_install_update_button.setEnabled(
-                (not is_checking) and (not is_installing) and has_update
+                updates_enabled and (not is_checking) and (not is_installing) and has_update
             )
             if is_installing:
                 self._settings_install_update_button.setText("Устанавливаю...")
@@ -4052,11 +4160,16 @@ class MainWindow(QMainWindow):
                     tooltip = issue
             self._settings_install_update_button.setToolTip(tooltip)
         if hasattr(self, "_updates_check_now_button"):
-            self._updates_check_now_button.setEnabled(not is_checking and not is_installing)
-            self._updates_check_now_button.setText("Проверяю..." if is_checking else "Проверить сейчас")
+            self._updates_check_now_button.setEnabled(
+                updates_enabled and (not is_checking) and (not is_installing)
+            )
+            if not updates_enabled and not is_checking:
+                self._updates_check_now_button.setText("Обновления отключены")
+            else:
+                self._updates_check_now_button.setText("Проверяю..." if is_checking else "Проверить сейчас")
         if hasattr(self, "_updates_install_button"):
             self._updates_install_button.setEnabled(
-                (not is_checking) and (not is_installing) and has_update
+                updates_enabled and (not is_checking) and (not is_installing) and has_update
             )
             if is_installing:
                 self._updates_install_button.setText("Устанавливаю...")
@@ -4079,6 +4192,8 @@ class MainWindow(QMainWindow):
                 self._updates_install_progress_bar.setVisible(False)
 
     def _update_status_message(self) -> str:
+        if not bool(self._settings.updates_enabled):
+            return "Система обновлений отключена в настройках."
         if self._update_install_manager.is_installing():
             return "Установка обновления..."
         if self._update_manager.is_checking():
@@ -4096,6 +4211,9 @@ class MainWindow(QMainWindow):
 
     def _refresh_update_footer_visibility(self) -> None:
         if not hasattr(self, "_update_footer"):
+            return
+        if not bool(self._settings.updates_enabled):
+            self._update_footer.setVisible(False)
             return
         result = self._last_update_result
         is_updates_page_open = hasattr(self, "_stack") and self._stack.currentIndex() == self.PAGE_UPDATES
@@ -4143,6 +4261,31 @@ class MainWindow(QMainWindow):
             self._updates_release_summary_value.setText(summary or "—")
         if hasattr(self, "_updates_release_notes_value"):
             self._updates_release_notes_value.setText(details_text or "—")
+        detail_items = self._release_note_items(details_text)
+        if hasattr(self, "_updates_release_notes_toggle"):
+            has_details = bool(detail_items)
+            if not has_details:
+                self._updates_release_notes_toggle.setChecked(False)
+            self._updates_release_notes_toggle.setEnabled(has_details)
+            self._updates_release_notes_toggle.setText(
+                "Свернуть подробный список"
+                if has_details and self._updates_release_notes_toggle.isChecked()
+                else "Развернуть подробный список"
+            )
+        if hasattr(self, "_updates_release_notes_browser"):
+            if detail_items:
+                notes_html = "<ul>" + "".join(
+                    f"<li>{html.escape(item)}</li>" for item in detail_items
+                ) + "</ul>"
+            else:
+                notes_html = "<div>Подробные пункты не указаны.</div>"
+            self._updates_release_notes_browser.setHtml(notes_html)
+            show_details = (
+                bool(detail_items)
+                and hasattr(self, "_updates_release_notes_toggle")
+                and self._updates_release_notes_toggle.isChecked()
+            )
+            self._updates_release_notes_browser.setVisible(show_details)
         if hasattr(self, "_updates_last_attempt_value"):
             self._updates_last_attempt_value.setText(
                 self._format_time_for_ui(self._settings.last_update_check_attempt_at)
@@ -4171,8 +4314,33 @@ class MainWindow(QMainWindow):
             else:
                 self._updates_install_progress_label.setText("Прогресс установки")
 
+        self._sync_updates_settings_controls()
         self._refresh_update_controls()
         self._refresh_update_footer_visibility()
+
+    def _on_toggle_updates_release_notes(self, checked: bool) -> None:
+        if hasattr(self, "_updates_release_notes_toggle"):
+            self._updates_release_notes_toggle.setText(
+                "Свернуть подробный список" if checked else "Развернуть подробный список"
+            )
+        if hasattr(self, "_updates_release_notes_browser"):
+            details = ""
+            if hasattr(self, "_updates_release_notes_value"):
+                details = str(self._updates_release_notes_value.text() or "")
+            self._updates_release_notes_browser.setVisible(bool(checked and self._release_note_items(details)))
+
+    @staticmethod
+    def _release_note_items(details_text: str) -> list[str]:
+        items: list[str] = []
+        for raw_line in str(details_text or "").splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            cleaned = line.lstrip("•- ").strip()
+            if cleaned in {"—", "-"}:
+                continue
+            items.append(cleaned)
+        return [item for item in items if item]
 
     @staticmethod
     def _format_release_notes_for_ui(result: UpdateCheckResult | None) -> tuple[str, str]:

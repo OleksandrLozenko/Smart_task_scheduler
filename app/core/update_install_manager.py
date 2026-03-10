@@ -83,12 +83,23 @@ class _UpdateInstallWorker(QObject):
             if context is not None:
                 shutil.rmtree(context.staging_dir, ignore_errors=True)
                 shutil.rmtree(context.session_dir, ignore_errors=True)
-            self.failed.emit(str(exc))
+            self.failed.emit(self._format_install_failure_message(str(exc)))
         except Exception:
             if context is not None:
                 shutil.rmtree(context.staging_dir, ignore_errors=True)
                 shutil.rmtree(context.session_dir, ignore_errors=True)
-            self.failed.emit("Failed to prepare update installation.")
+            self.failed.emit("Не удалось подготовить установку обновления.")
+
+    @staticmethod
+    def _format_install_failure_message(raw_message: str) -> str:
+        message = str(raw_message or "").strip()
+        lowered = message.lower()
+        if "http 404" in lowered:
+            return (
+                "Манифест доступен, но пакет обновления не найден по download_url. "
+                "Проверьте GitHub Release, имя asset и ссылку в манифесте."
+            )
+        return message or "Не удалось подготовить установку обновления."
 
 
 class UpdateInstallManager(QObject):

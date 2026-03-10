@@ -175,8 +175,9 @@ class FloatingTimerWindow(QWidget):
         self._opacity_percent = max(35, min(100, int(opacity_percent)))
 
         self._apply_transparency_style()
-        # Keep window content crisp even on low opacity settings.
-        self.setWindowOpacity(1.0)
+        # Apply true window opacity so transparency setting is visibly reflected.
+        window_opacity = max(0.35, min(1.0, self._opacity_percent / 100.0))
+        self.setWindowOpacity(window_opacity)
         self._apply_header_compactness()
         self._update_blink_state(self._controller.state.snapshot())
 

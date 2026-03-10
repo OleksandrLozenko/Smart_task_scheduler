@@ -40,8 +40,10 @@ class AppSettings:
     planning_follow_tasks_queue: bool = True
     tasks_units_compact_mode: bool = False
     updates_manifest_url: str = DEFAULT_UPDATE_MANIFEST_URL
+    updates_enabled: bool = True
     auto_check_updates_on_start: bool = True
     update_check_interval_hours: int = 12
+    updates_auto_install: bool = False
     last_update_check_attempt_at: str = ""
     last_update_check_success_at: str = ""
     dismissed_update_version: str = ""

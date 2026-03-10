@@ -1,8 +1,8 @@
 {
-  "latest_version": "0.6.1",
+  "latest_version": "0.6.5",
   "minimum_supported_version": "0.6.0",
-  "release_notes": "Test update 0.6.1.\n- Install flow check.\n- Updater wiring check.",
-  "download_url": "https://github.com/OleksandrLozenko/Smart_task_scheduler/releases/download/v0.6.1/FlowGrid_portable_0.6.1.zip",
-  "sha256": "79fe41258bb77610c49790b9a9bb2a06eb7a705c316e0f8319f3679883796fd3",
-  "published_at": "2026-03-10T16:41:12Z"
+  "release_notes": "FlowGrid 0.6.5: update settings and UX improvements; fixed floating timer transparency; redesigned Updates page with expandable notes; optimized main workspace area by narrowing sidebar.",
+  "download_url": "https://github.com/OleksandrLozenko/Smart_task_scheduler/releases/download/v0.6.5/FlowGrid_portable_0.6.5.zip",
+  "sha256": "b0e709833f0b7c860fe1bd131e64b667e9c03b4575989957ce6f6e9d724dc9ad",
+  "published_at": "2026-03-10T20:40:34Z"
 }

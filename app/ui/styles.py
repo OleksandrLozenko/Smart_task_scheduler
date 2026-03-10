@@ -780,6 +780,33 @@ QDialog#planningTaskDialog QPushButton:hover {{
     font-size: {fs(17)}px;
 }}
 
+QTextBrowser#updatesReleaseNotesBrowser {{
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 10px;
+    color: {tokens["text_main"]};
+    padding: 8px 10px;
+    font-size: {fs(15)}px;
+}}
+
+QTextBrowser#updatesReleaseNotesBrowser QScrollBar:vertical {{
+    background: rgba(255, 255, 255, 0.08);
+    width: 10px;
+    margin: 2px;
+    border-radius: 5px;
+}}
+
+QTextBrowser#updatesReleaseNotesBrowser QScrollBar::handle:vertical {{
+    background: rgba(255, 255, 255, 0.32);
+    min-height: 28px;
+    border-radius: 5px;
+}}
+
+QTextBrowser#updatesReleaseNotesBrowser QScrollBar::add-line:vertical,
+QTextBrowser#updatesReleaseNotesBrowser QScrollBar::sub-line:vertical {{
+    height: 0px;
+}}
+
 QPushButton#settingsSaveButton,
 QPushButton#settingsResetButton,
 QPushButton#settingsPreviewButton {{
