@@ -1,8 +1,8 @@
 {
-  "latest_version": "0.6.0",
+  "latest_version": "0.6.1",
   "minimum_supported_version": "0.6.0",
-  "release_notes": "Текущая версия актуальна.",
-  "download_url": "",
-  "sha256": "",
-  "published_at": "2026-03-10T18:35:00Z"
+  "release_notes": "Test update 0.6.1.\n- Install flow check.\n- Updater wiring check.",
+  "download_url": "https://github.com/OleksandrLozenko/Smart_task_scheduler/releases/download/v0.6.1/FlowGrid_portable_0.6.1.zip",
+  "sha256": "79fe41258bb77610c49790b9a9bb2a06eb7a705c316e0f8319f3679883796fd3",
+  "published_at": "2026-03-10T16:41:12Z"
 }

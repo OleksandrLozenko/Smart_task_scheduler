@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 
-APP_VERSION = "0.6.0"
+APP_VERSION = "0.6.1"
 DEFAULT_UPDATE_MANIFEST_URL = (
     "https://raw.githubusercontent.com/OleksandrLozenko/Smart_task_scheduler/main/update_manifest.json"
 )
