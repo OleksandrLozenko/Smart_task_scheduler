@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -389,6 +390,11 @@ class MainWindow(QMainWindow):
         self._planning_save_timer.setSingleShot(True)
         self._planning_save_timer.setInterval(420)
         self._planning_save_timer.timeout.connect(self._persist_planning_state)
+        self._update_install_progress_value = 0
+        self._update_install_progress_real = False
+        self._update_install_progress_timer = QTimer(self)
+        self._update_install_progress_timer.setInterval(140)
+        self._update_install_progress_timer.timeout.connect(self._tick_update_install_progress)
         tomato_path = self._asset_path("tomato.svg")
         self._tomato_icon = QIcon(str(tomato_path)) if tomato_path.exists() else QIcon()
         self._load_planning_state()
@@ -951,10 +957,22 @@ class MainWindow(QMainWindow):
         actions.addWidget(self._updates_install_button)
         actions.addStretch(1)
 
+        self._updates_install_progress_label = QLabel("Прогресс установки", card)
+        self._updates_install_progress_label.setObjectName("settingsPageHint")
+        self._updates_install_progress_bar = QProgressBar(card)
+        self._updates_install_progress_bar.setObjectName("updatesInstallProgressBar")
+        self._updates_install_progress_bar.setRange(0, 100)
+        self._updates_install_progress_bar.setValue(0)
+        self._updates_install_progress_bar.setTextVisible(True)
+        self._updates_install_progress_bar.setFormat("%p%")
+        self._updates_install_progress_bar.setVisible(False)
+
         card_layout.addWidget(title)
         card_layout.addWidget(hint)
         card_layout.addWidget(info_box)
         card_layout.addLayout(actions)
+        card_layout.addWidget(self._updates_install_progress_label)
+        card_layout.addWidget(self._updates_install_progress_bar)
 
         layout.addWidget(card, stretch=1)
         return page
@@ -3861,6 +3879,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def _on_update_install_started(self) -> None:
         self.statusBar().showMessage("Подготовка установки обновления...", 2400)
+        self._start_update_install_progress_simulation()
+        self._set_update_install_progress(6)
         self._refresh_update_ui()
 
     @Slot(str)
@@ -3870,10 +3890,13 @@ class MainWindow(QMainWindow):
             self._settings_update_status.setText(text)
         if hasattr(self, "_updates_status_value"):
             self._updates_status_value.setText(text)
+        self._update_install_progress_from_status(text)
         self.statusBar().showMessage(text, 2200)
 
     @Slot(str)
     def _on_update_install_finished(self, version: str) -> None:
+        self._set_update_install_progress(100)
+        self._stop_update_install_progress_simulation()
         self._last_update_error = ""
         self._settings.dismissed_update_version = ""
         self._persist_update_metadata()
@@ -3891,10 +3914,11 @@ class MainWindow(QMainWindow):
             f"Updater запущен для версии {version}. Закрываю приложение...",
             3800,
         )
-        QTimer.singleShot(120, self.close)
+        QTimer.singleShot(420, self.close)
 
     @Slot(str)
     def _on_update_install_failed(self, message: str) -> None:
+        self._stop_update_install_progress_simulation()
         text = message or "Не удалось подготовить установку обновления."
         if hasattr(self, "_settings_update_status"):
             self._settings_update_status.setText(text)
@@ -3908,7 +3932,67 @@ class MainWindow(QMainWindow):
 
     @Slot(bool)
     def _on_update_installing_changed(self, _is_installing: bool) -> None:
+        if not self._update_install_manager.is_installing():
+            self._stop_update_install_progress_simulation()
         self._refresh_update_ui()
+
+    def _set_update_install_progress(self, value: int) -> None:
+        bounded = max(0, min(100, int(value)))
+        if bounded <= self._update_install_progress_value:
+            return
+        self._update_install_progress_value = bounded
+        if hasattr(self, "_updates_install_progress_bar"):
+            self._updates_install_progress_bar.setValue(bounded)
+
+    def _start_update_install_progress_simulation(self) -> None:
+        self._update_install_progress_real = False
+        self._update_install_progress_value = 0
+        self._set_update_install_progress(3)
+        if hasattr(self, "_updates_install_progress_bar"):
+            self._updates_install_progress_bar.setVisible(True)
+        if not self._update_install_progress_timer.isActive():
+            self._update_install_progress_timer.start()
+
+    def _stop_update_install_progress_simulation(self) -> None:
+        if self._update_install_progress_timer.isActive():
+            self._update_install_progress_timer.stop()
+
+    @Slot()
+    def _tick_update_install_progress(self) -> None:
+        if not self._update_install_manager.is_installing():
+            self._stop_update_install_progress_simulation()
+            return
+        cap = 92 if self._update_install_progress_real else 88
+        if self._update_install_progress_value >= cap:
+            return
+        self._set_update_install_progress(self._update_install_progress_value + 1)
+
+    def _update_install_progress_from_status(self, text: str) -> None:
+        lowered = str(text or "").lower()
+        percent_match = re.search(r"(\d{1,3})\s*%", lowered)
+
+        if "preparing update" in lowered or "подготов" in lowered:
+            self._set_update_install_progress(7)
+            return
+
+        if "downloading update" in lowered or "скачив" in lowered:
+            self._set_update_install_progress(12)
+            if percent_match:
+                try:
+                    percent = max(0, min(100, int(percent_match.group(1))))
+                except (TypeError, ValueError):
+                    percent = 0
+                mapped = 12 + int(percent * 0.60)
+                self._update_install_progress_real = True
+                self._set_update_install_progress(mapped)
+            return
+
+        if "verifying checksum" in lowered or "провер" in lowered:
+            self._set_update_install_progress(80)
+            return
+
+        if "launching updater" in lowered or "запуск" in lowered:
+            self._set_update_install_progress(93)
 
     def _has_installable_update_result(self) -> bool:
         result = self._last_update_result
@@ -3939,6 +4023,13 @@ class MainWindow(QMainWindow):
                 (not is_checking) and (not is_installing) and can_install
             )
             self._updates_install_button.setText("Устанавливаю..." if is_installing else "Установить")
+        if hasattr(self, "_updates_install_progress_bar"):
+            if is_installing:
+                self._updates_install_progress_bar.setVisible(True)
+            elif self._update_install_progress_value >= 100:
+                self._updates_install_progress_bar.setVisible(True)
+            else:
+                self._updates_install_progress_bar.setVisible(False)
 
     def _update_status_message(self) -> str:
         if self._update_install_manager.is_installing():
@@ -4025,6 +4116,13 @@ class MainWindow(QMainWindow):
                 self._updates_support_warning.setText(
                     "Ваша версия ниже минимально поддерживаемой. Рекомендуется установить обновление."
                 )
+        if hasattr(self, "_updates_install_progress_label"):
+            if self._update_install_manager.is_installing():
+                self._updates_install_progress_label.setText("Прогресс установки (скачивание и подготовка)")
+            elif self._update_install_progress_value >= 100:
+                self._updates_install_progress_label.setText("Установка запущена, приложение перезапускается")
+            else:
+                self._updates_install_progress_label.setText("Прогресс установки")
 
         self._refresh_update_controls()
         self._refresh_update_footer_visibility()

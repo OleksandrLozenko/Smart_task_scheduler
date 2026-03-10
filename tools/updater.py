@@ -6,7 +6,6 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import time
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -30,9 +29,9 @@ def _is_within(path: Path, root: Path) -> bool:
 
 def _ensure_outside(path: Path, target_dir: Path, label: str) -> None:
     if path.resolve(strict=False) == target_dir.resolve(strict=False):
-        raise UpdaterError(f"{label} не должен совпадать с папкой приложения.")
+        raise UpdaterError(f"{label} ?? ?????? ????????? ? ?????? ??????????.")
     if _is_within(path, target_dir):
-        raise UpdaterError(f"{label} должен находиться вне папки приложения.")
+        raise UpdaterError(f"{label} ?????? ?????????? ??? ????? ??????????.")
 
 
 def _wait_for_pid_exit(pid: int, timeout_seconds: int) -> bool:
@@ -73,13 +72,13 @@ def _wait_for_pid_exit(pid: int, timeout_seconds: int) -> bool:
 def _assert_target_writable(target_dir: Path) -> None:
     parent = target_dir.parent
     if not parent.exists():
-        raise UpdaterError("Родительская папка приложения не найдена.")
+        raise UpdaterError("???????????? ????? ?????????? ?? ???????.")
     probe = parent / f".fg-updater-probe-{int(time.time() * 1000)}"
     try:
         probe.mkdir(parents=False, exist_ok=False)
     except OSError as exc:
         raise UpdaterError(
-            "Папка установки недоступна для записи. V1 поддерживает только per-user install."
+            "????? ????????? ?????????? ??? ??????. V1 ???????????? ?????? per-user install."
         ) from exc
     finally:
         try:
@@ -94,16 +93,16 @@ def _sanitize_zip_parts(name: str) -> list[str]:
     if not normalized or normalized.endswith("/"):
         return []
     if normalized.startswith("/") or normalized.startswith("\\"):
-        raise UpdaterError("В zip обнаружен абсолютный путь.")
+        raise UpdaterError("? zip ????????? ?????????? ????.")
 
     pure = PurePosixPath(normalized)
     parts = [part for part in pure.parts if part not in ("", ".")]
     if not parts:
         return []
     if any(part == ".." for part in parts):
-        raise UpdaterError("В zip обнаружен path traversal (..).")
+        raise UpdaterError("? zip ????????? path traversal (..).")
     if ":" in parts[0]:
-        raise UpdaterError("В zip обнаружен недопустимый абсолютный путь с диском.")
+        raise UpdaterError("? zip ????????? ???????????? ?????????? ???? ? ??????.")
     return parts
 
 
@@ -121,7 +120,7 @@ def _extract_safe_zip(package_zip: Path, staging_dir: Path) -> None:
             entries.append((info, parts))
 
         if not entries:
-            raise UpdaterError("Пакет обновления пуст.")
+            raise UpdaterError("????? ?????????? ????.")
 
         common_root: str | None = None
         roots = {parts[0] for _, parts in entries}
@@ -137,7 +136,7 @@ def _extract_safe_zip(package_zip: Path, staging_dir: Path) -> None:
             relative = Path(*rel_parts)
             destination = (staging_dir / relative).resolve(strict=False)
             if not _is_within(destination, staging_resolved):
-                raise UpdaterError("Небезопасный путь файла в zip.")
+                raise UpdaterError("???????????? ???? ????? ? zip.")
 
             if info.is_dir():
                 destination.mkdir(parents=True, exist_ok=True)
@@ -149,25 +148,31 @@ def _extract_safe_zip(package_zip: Path, staging_dir: Path) -> None:
             extracted_files += 1
 
     if extracted_files <= 0:
-        raise UpdaterError("Пакет обновления не содержит файлов для установки.")
+        raise UpdaterError("????? ?????????? ?? ???????? ?????? ??? ?????????.")
 
 
 def _validate_package_layout(staging_dir: Path, restart_cmd: list[str]) -> None:
     if not restart_cmd or not restart_cmd[0]:
-        raise UpdaterError("Некорректная команда перезапуска.")
+        raise UpdaterError("???????????? ??????? ???????????.")
 
     restart_name = Path(restart_cmd[0]).name
     if not restart_name:
-        raise UpdaterError("Некорректный restart executable в параметрах updater.")
+        raise UpdaterError("???????????? restart executable ? ?????????? updater.")
 
-    restart_candidate = staging_dir / restart_name
-    if not restart_candidate.exists():
-        raise UpdaterError("Пакет обновления не похож на корректную onedir-сборку.")
+    if Path(restart_name).suffix.lower() == ".exe":
+        restart_candidate = staging_dir / restart_name
+        if not restart_candidate.exists():
+            raise UpdaterError("????? ?????????? ?? ????? ?? ?????????? onedir-??????.")
+        return
+
+    # Dev/script mode fallback validation.
+    if not (staging_dir / "main.py").exists():
+        raise UpdaterError("????? ?????????? ?? ???????? main.py ??? script-??????.")
 
 
 def _swap_with_backup(target_dir: Path, backup_dir: Path, staging_dir: Path) -> None:
     if backup_dir.exists():
-        raise UpdaterError("Папка backup уже существует. Остановлено во избежание потери данных.")
+        raise UpdaterError("????? backup ??? ??????????. ??????????? ?? ????????? ?????? ??????.")
 
     moved_to_backup = False
     try:
@@ -183,22 +188,62 @@ def _swap_with_backup(target_dir: Path, backup_dir: Path, staging_dir: Path) -> 
                 shutil.move(str(backup_dir), str(target_dir))
             except Exception:
                 raise UpdaterError(
-                    "Ошибка установки и не удалось восстановить backup автоматически."
+                    "?????? ????????? ? ?? ??????? ???????????? backup ?????????????."
                 ) from exc
-        raise UpdaterError("Ошибка при замене файлов приложения.") from exc
+        raise UpdaterError("?????? ??? ?????? ?????? ??????????.") from exc
+
+
+def _resolve_restart_command(restart_cmd: list[str], target_dir: Path) -> list[str]:
+    if not restart_cmd:
+        raise UpdaterError("??????? ??????????? ???????????.")
+
+    first = Path(str(restart_cmd[0]))
+    if first.suffix.lower() != ".exe":
+        return list(restart_cmd)
+
+    preferred = target_dir / first.name
+    if preferred.exists():
+        return [str(preferred), *restart_cmd[1:]]
+    return list(restart_cmd)
 
 
 def _start_restart_command(restart_cmd: list[str], cwd: Path) -> None:
     if not restart_cmd:
-        raise UpdaterError("Команда перезапуска отсутствует.")
+        raise UpdaterError("??????? ??????????? ???????????.")
+
     creationflags = 0
     if os.name == "nt":
         creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
             subprocess, "DETACHED_PROCESS", 0
         )
+
     try:
         subprocess.Popen(
             restart_cmd,
+            cwd=str(cwd),
+            close_fds=True,
+            creationflags=creationflags,
+        )
+        return
+    except OSError:
+        # Fallback launcher for Windows when direct spawn from updater is blocked.
+        if os.name != "nt":
+            raise
+
+    try:
+        cmd_line = subprocess.list2cmdline(restart_cmd)
+        helper = cwd.parent / f".flowgrid-restart-{int(time.time() * 1000)}.cmd"
+        helper_script = (
+            "@echo off\r\n"
+            f'cd /d "{cwd}"\r\n'
+            f'start "" {cmd_line}\r\n'
+        )
+        helper.write_text(
+            helper_script,
+            encoding="utf-8",
+        )
+        subprocess.Popen(
+            ["cmd", "/c", str(helper)],
             cwd=str(cwd),
             close_fds=True,
             creationflags=creationflags,
@@ -242,13 +287,13 @@ def run(argv: list[str] | None = None) -> int:
         if not restart_cmd:
             raise ValueError
     except ValueError as exc:
-        raise UpdaterError("Некорректный restart-cmd-json.") from exc
+        raise UpdaterError("???????????? restart-cmd-json.") from exc
 
     package_consumed = False
     try:
         _log("Waiting for app process to exit...")
         if not _wait_for_pid_exit(int(args.wait_pid), int(args.wait_timeout_seconds)):
-            raise UpdaterError("Превышен таймаут ожидания завершения приложения.")
+            raise UpdaterError("???????? ??????? ???????? ?????????? ??????????.")
 
         _log("Checking write access...")
         _assert_target_writable(target_dir)
@@ -256,7 +301,7 @@ def run(argv: list[str] | None = None) -> int:
         _ensure_outside(staging_dir, target_dir, "Staging")
 
         if not package_zip.exists() or not package_zip.is_file():
-            raise UpdaterError("Пакет обновления не найден.")
+            raise UpdaterError("????? ?????????? ?? ??????.")
 
         _log("Extracting package...")
         _extract_safe_zip(package_zip, staging_dir)
@@ -267,7 +312,8 @@ def run(argv: list[str] | None = None) -> int:
         package_consumed = True
 
         _log("Starting updated app...")
-        _start_restart_command(restart_cmd, target_dir)
+        resolved_restart_cmd = _resolve_restart_command(restart_cmd, target_dir)
+        _start_restart_command(resolved_restart_cmd, target_dir)
         _log("Update finished.")
         return 0
     finally:

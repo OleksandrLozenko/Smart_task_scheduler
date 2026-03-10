@@ -874,6 +874,27 @@ QPushButton#updateFooterSecondaryButton:hover {{
     font-weight: 600;
 }}
 
+QProgressBar#updatesInstallProgressBar {{
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.12);
+    color: {tokens["text_main"]};
+    text-align: center;
+    min-height: 18px;
+    max-height: 18px;
+    font-size: {fs(12)}px;
+    font-weight: 700;
+}}
+
+QProgressBar#updatesInstallProgressBar::chunk {{
+    border-radius: 7px;
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 1, y2: 0,
+        stop: 0 {tokens["accent"]},
+        stop: 1 rgba(255, 255, 255, 0.88)
+    );
+}}
+
 QMessageBox {{
     background: rgba({tokens["card_rgb"]}, 248);
 }}
