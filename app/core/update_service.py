@@ -101,7 +101,7 @@ def _download_manifest_json(url: str, timeout_seconds: int) -> object:
 
     try:
         with urlopen(request, timeout=max(2, int(timeout_seconds))) as response:
-            payload = response.read().decode("utf-8")
+            payload = response.read().decode("utf-8-sig")
     except ValueError as exc:
         raise UpdateCheckError("Malformed update manifest URL.") from exc
     except HTTPError as exc:

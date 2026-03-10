@@ -874,6 +874,31 @@ QPushButton#updateFooterSecondaryButton:hover {{
     font-weight: 600;
 }}
 
+QMessageBox {{
+    background: rgba({tokens["card_rgb"]}, 248);
+}}
+
+QMessageBox QLabel {{
+    color: {tokens["text_main"]};
+    background: transparent;
+    font-size: {fs(15)}px;
+}}
+
+QMessageBox QPushButton {{
+    min-width: 88px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: {tokens["secondary_bg"]};
+    border: 1px solid {tokens["secondary_border"]};
+    color: {tokens["text_main"]};
+    font-size: {fs(14)}px;
+    font-weight: 600;
+}}
+
+QMessageBox QPushButton:hover {{
+    background: rgba(255, 255, 255, 0.20);
+}}
+
 QStatusBar {{
     background: transparent;
     color: {tokens["text_main"]};

@@ -189,7 +189,7 @@ class UpdateUiFlowTests(unittest.TestCase):
         self.assertEqual(self.window._stack.currentIndex(), self.window.PAGE_UPDATES)
 
     def test_release_notes_rendered_on_updates_page(self) -> None:
-        notes = "Новая логика очереди задач и UX исправления."
+        notes = "Release section updated.\n- Added footer banner.\n- Improved status rendering."
         self.window._update_check_origin = "auto"
         self.window._update_check_show_popups = False
         self.window._on_update_check_finished(
@@ -197,7 +197,10 @@ class UpdateUiFlowTests(unittest.TestCase):
         )
         self.window._switch_page(self.window.PAGE_UPDATES)
         self._app.processEvents()
-        self.assertIn(notes, self.window._updates_release_notes_value.text())
+        self.assertIn("Release section updated.", self.window._updates_release_summary_value.text())
+        details_text = self.window._updates_release_notes_value.text()
+        self.assertIn("Added footer banner.", details_text)
+        self.assertIn("Improved status rendering.", details_text)
 
     def test_install_button_enabled_only_for_installable_update(self) -> None:
         self.window._update_check_origin = "auto"

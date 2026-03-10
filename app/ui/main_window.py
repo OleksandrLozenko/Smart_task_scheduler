@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.core.app_version import APP_VERSION
+from app.core.app_version import APP_VERSION, DEFAULT_UPDATE_MANIFEST_URL
 from app.core.pomodoro_controller import PomodoroController
 from app.core.planner_controller import PlannerController
 from app.core.planning_state_manager import PlanningStateManager
@@ -337,6 +337,9 @@ class MainWindow(QMainWindow):
         self._settings = settings
         self._settings_manager = settings_manager
         self._app_version = app_version
+        if str(self._settings.updates_manifest_url or "").strip().lower().startswith("file://"):
+            self._settings.updates_manifest_url = DEFAULT_UPDATE_MANIFEST_URL
+            self._settings_manager.save(self._settings)
         self._floating_window: FloatingTimerWindow | None = None
         self._update_manager = UpdateManager(self)
         self._update_manager.check_started.connect(self._on_update_check_started)
@@ -905,6 +908,13 @@ class MainWindow(QMainWindow):
         self._updates_support_warning.setWordWrap(True)
         self._updates_support_warning.setVisible(False)
 
+        self._updates_release_summary_value = QLabel("—", info_box)
+        self._updates_release_summary_value.setObjectName("settingsPageHint")
+        self._updates_release_summary_value.setWordWrap(True)
+        self._updates_release_summary_value.setTextInteractionFlags(
+            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
+        )
+
         self._updates_release_notes_value = QLabel("—", info_box)
         self._updates_release_notes_value.setObjectName("settingsPageHint")
         self._updates_release_notes_value.setWordWrap(True)
@@ -921,7 +931,8 @@ class MainWindow(QMainWindow):
         info_layout.addRow("Статус", self._updates_status_value)
         info_layout.addRow("", self._updates_error_value)
         info_layout.addRow("", self._updates_support_warning)
-        info_layout.addRow("Что нового", self._updates_release_notes_value)
+        info_layout.addRow("Общее", self._updates_release_summary_value)
+        info_layout.addRow("Подробно", self._updates_release_notes_value)
 
         actions = QHBoxLayout()
         actions.setContentsMargins(0, 0, 0, 0)
@@ -3717,6 +3728,11 @@ class MainWindow(QMainWindow):
             manifest_url = str(self._settings_updates_manifest_url.text() or "").strip()
         else:
             manifest_url = str(self._settings.updates_manifest_url or "").strip()
+        if manifest_url.lower().startswith("file://"):
+            manifest_url = DEFAULT_UPDATE_MANIFEST_URL
+            if hasattr(self, "_settings_updates_manifest_url"):
+                with QSignalBlocker(self._settings_updates_manifest_url):
+                    self._settings_updates_manifest_url.setText(manifest_url)
         self._settings.updates_manifest_url = manifest_url
         return manifest_url
 
@@ -3773,7 +3789,7 @@ class MainWindow(QMainWindow):
         return started
 
     def _on_check_updates_clicked(self) -> None:
-        self._start_update_check(origin=_UpdateCheckOrigin.MANUAL, show_popups=True)
+        self._start_update_check(origin=_UpdateCheckOrigin.MANUAL, show_popups=False)
 
     @Slot()
     def _on_update_check_started(self) -> None:
@@ -3798,33 +3814,12 @@ class MainWindow(QMainWindow):
 
         self._refresh_update_ui()
         if result.is_update_available:
-            if self._update_check_show_popups:
-                lines = [
-                    f"Доступна новая версия: {result.latest_version}",
-                    f"Текущая версия: {result.current_version}",
-                ]
-                if result.published_at:
-                    lines.append(f"Дата публикации: {result.published_at}")
-                if result.release_notes:
-                    lines.append("")
-                    lines.append("Что нового:")
-                    lines.append(result.release_notes)
-                if not self._has_installable_update_result():
-                    lines.append("")
-                    lines.append("Установка недоступна: в манифесте нет download_url или sha256.")
-                QMessageBox.information(self, "Обновление найдено", "\n".join(lines))
             self.statusBar().showMessage(
                 f"Найдена новая версия {result.latest_version}.",
                 4500,
             )
             return
 
-        if self._update_check_show_popups:
-            QMessageBox.information(
-                self,
-                "Обновления",
-                f"Установлена актуальная версия ({result.current_version}).",
-            )
         self.statusBar().showMessage("Установлена актуальная версия приложения.", 3200)
 
     @Slot(str)
@@ -3832,8 +3827,6 @@ class MainWindow(QMainWindow):
         text = message or "Ошибка проверки обновлений."
         self._last_update_error = text
         self._refresh_update_ui()
-        if self._update_check_show_popups:
-            QMessageBox.warning(self, "Ошибка проверки обновлений", text)
         self.statusBar().showMessage(
             text,
             4200,
@@ -4007,9 +4000,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, "_updates_published_at_value"):
             published = str(result.published_at).strip() if result is not None else ""
             self._updates_published_at_value.setText(published or "—")
+        summary, details_text = self._format_release_notes_for_ui(result)
+        if hasattr(self, "_updates_release_summary_value"):
+            self._updates_release_summary_value.setText(summary or "—")
         if hasattr(self, "_updates_release_notes_value"):
-            notes = str(result.release_notes).strip() if result is not None else ""
-            self._updates_release_notes_value.setText(notes or "—")
+            self._updates_release_notes_value.setText(details_text or "—")
         if hasattr(self, "_updates_last_attempt_value"):
             self._updates_last_attempt_value.setText(
                 self._format_time_for_ui(self._settings.last_update_check_attempt_at)
@@ -4033,6 +4028,34 @@ class MainWindow(QMainWindow):
 
         self._refresh_update_controls()
         self._refresh_update_footer_visibility()
+
+    @staticmethod
+    def _format_release_notes_for_ui(result: UpdateCheckResult | None) -> tuple[str, str]:
+        notes = str(result.release_notes).strip() if result is not None else ""
+        if not notes:
+            return "", ""
+
+        lines = [line.strip() for line in notes.replace("\r\n", "\n").split("\n") if line.strip()]
+        if not lines:
+            return "", ""
+
+        summary = lines[0]
+        detail_candidates = lines[1:]
+        details: list[str] = []
+        for line in detail_candidates:
+            normalized = line.lstrip("-•* ").strip()
+            if normalized:
+                details.append(normalized)
+
+        # Fallback for single-line notes separated by ';'
+        if not details and ";" in summary:
+            parts = [part.strip() for part in summary.split(";") if part.strip()]
+            if parts:
+                summary = parts[0]
+                details = parts[1:]
+
+        details_text = "\n".join(f"• {item}" for item in details)
+        return summary, details_text
 
     def _save_settings_page(self) -> None:
         self._apply_settings(self._collect_settings_from_form(), persist=True)

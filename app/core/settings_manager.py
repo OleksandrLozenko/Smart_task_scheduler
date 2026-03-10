@@ -4,6 +4,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from app.core.app_version import DEFAULT_UPDATE_MANIFEST_URL
 from app.core.app_paths import get_app_paths
@@ -182,10 +183,13 @@ class SettingsManager:
         }
         if normalized.get("timer_sound_id") not in allowed_timer_sound_ids:
             normalized["timer_sound_id"] = "alarm_classic"
-        normalized["updates_manifest_url"] = (
-            str(normalized.get("updates_manifest_url", "")).strip()
-            or DEFAULT_UPDATE_MANIFEST_URL
-        )
+        manifest_url = str(normalized.get("updates_manifest_url", "")).strip()
+        # Keep production default on GitHub manifest; local file:// URLs were only for manual dev testing.
+        if manifest_url:
+            parsed = urlparse(manifest_url)
+            if parsed.scheme.lower() == "file":
+                manifest_url = DEFAULT_UPDATE_MANIFEST_URL
+        normalized["updates_manifest_url"] = manifest_url or DEFAULT_UPDATE_MANIFEST_URL
         normalized["last_update_check_attempt_at"] = str(
             normalized.get("last_update_check_attempt_at", "")
         ).strip()
