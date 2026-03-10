@@ -20,10 +20,16 @@ class AppSettings:
     main_card_opacity_percent: int = 94
     planning_progress_view: str = "fraction"
     planning_visual_style: str = "circle"
+    planning_cell_style: str = "soft"
     planning_visual_max_symbols: int = 6
     planning_row_height: int = 52
     planning_table_font_size: int = 16
     planning_auto_switch_to_timer_on_select: bool = True
+    planning_today_highlight_percent: int = 82
+    planning_task_column_width: int = 190
+    planning_total_column_width: int = 94
+    timer_sound_id: str = "alarm_classic"
+    timer_sound_volume_percent: int = 90
     always_on_top_default: bool = False
     floating_opacity_percent: int = 96
     floating_pin_button_size: int = 34
@@ -100,6 +106,14 @@ class SettingsManager:
                     normalized[key] = min(84, max(40, parsed))
                 elif key == "planning_table_font_size":
                     normalized[key] = min(22, max(12, parsed))
+                elif key == "planning_today_highlight_percent":
+                    normalized[key] = min(100, max(30, parsed))
+                elif key == "planning_task_column_width":
+                    normalized[key] = min(320, max(140, parsed))
+                elif key == "planning_total_column_width":
+                    normalized[key] = min(160, max(72, parsed))
+                elif key == "timer_sound_volume_percent":
+                    normalized[key] = min(100, max(0, parsed))
                 elif key == "floating_opacity_percent":
                     normalized[key] = min(100, max(35, parsed))
                 elif key == "floating_pin_button_size":
@@ -120,8 +134,22 @@ class SettingsManager:
         if normalized.get("planning_progress_view") not in allowed_planning_progress:
             normalized["planning_progress_view"] = "fraction"
 
-        allowed_planning_visual_styles = {"circle", "tomato"}
+        allowed_planning_visual_styles = {"circle", "tomato", "square", "bar"}
         if normalized.get("planning_visual_style") not in allowed_planning_visual_styles:
             normalized["planning_visual_style"] = "circle"
+
+        allowed_planning_cell_styles = {"soft", "contrast", "minimal"}
+        if normalized.get("planning_cell_style") not in allowed_planning_cell_styles:
+            normalized["planning_cell_style"] = "soft"
+
+        allowed_timer_sound_ids = {
+            "alarm_classic",
+            "soft_chime",
+            "digital",
+            "bell",
+            "ascending",
+        }
+        if normalized.get("timer_sound_id") not in allowed_timer_sound_ids:
+            normalized["timer_sound_id"] = "alarm_classic"
 
         return AppSettings(**normalized)

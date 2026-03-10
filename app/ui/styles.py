@@ -600,7 +600,8 @@ QDialog#planningTaskDialog QPushButton:hover {{
 }}
 
 QPushButton#settingsSaveButton,
-QPushButton#settingsResetButton {{
+QPushButton#settingsResetButton,
+QPushButton#settingsPreviewButton {{
     border-radius: 8px;
     font-weight: 600;
     min-height: 48px;
@@ -627,6 +628,18 @@ QPushButton#settingsResetButton {{
 
 QPushButton#settingsResetButton:hover {{
     background: rgba(255, 255, 255, 0.24);
+}}
+
+QPushButton#settingsPreviewButton {{
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: {tokens["text_main"]};
+    min-height: 42px;
+    font-size: 15px;
+}}
+
+QPushButton#settingsPreviewButton:hover {{
+    background: rgba(255, 255, 255, 0.28);
 }}
 
 QStatusBar {{

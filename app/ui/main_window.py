@@ -43,7 +43,11 @@ from app.ui.floating_timer import FloatingTimerWindow
 from app.ui.styles import build_app_stylesheet
 from app.ui.week_header import WeekHeader
 from app.ui.window_drag import DragHandleFrame
-from app.utils.audio_alert import play_completion_alert
+from app.utils.audio_alert import (
+    available_timer_sounds,
+    play_completion_alert,
+    preview_completion_alert,
+)
 from app.utils.time_format import format_seconds
 
 
@@ -70,12 +74,20 @@ class PlanningWeekTable(QTableWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._highlighted_column: int | None = None
+        self._highlight_alpha = 82
 
     def set_highlighted_column(self, column: int | None) -> None:
         normalized = int(column) if isinstance(column, int) and column >= 0 else None
         if normalized == self._highlighted_column:
             return
         self._highlighted_column = normalized
+        self.viewport().update()
+
+    def set_highlight_strength(self, percent: int) -> None:
+        alpha = max(30, min(100, int(percent)))
+        if alpha == self._highlight_alpha:
+            return
+        self._highlight_alpha = alpha
         self.viewport().update()
 
     def paintEvent(self, event: QPaintEvent) -> None:  # type: ignore[override]
@@ -98,8 +110,16 @@ class PlanningWeekTable(QTableWidget):
         painter = QPainter(self.viewport())
         painter.setRenderHint(QPainter.Antialiasing, False)
 
-        painter.fillRect(x, viewport_rect.top(), width, viewport_rect.height(), QColor(242, 94, 126, 82))
-        border_pen = QPen(QColor(255, 182, 199, 210))
+        fill_alpha = int(self._highlight_alpha * 2.2)
+        border_alpha = min(255, fill_alpha + 90)
+        painter.fillRect(
+            x,
+            viewport_rect.top(),
+            width,
+            viewport_rect.height(),
+            QColor(242, 94, 126, fill_alpha),
+        )
+        border_pen = QPen(QColor(255, 182, 199, border_alpha))
         border_pen.setWidth(2)
         painter.setPen(border_pen)
         painter.drawLine(x, viewport_rect.top(), x, viewport_rect.bottom())
@@ -415,11 +435,17 @@ class MainWindow(QMainWindow):
         header.setDefaultAlignment(Qt.AlignCenter)
         header.setHighlightSections(False)
         header.setSectionResizeMode(0, QHeaderView.Fixed)
-        self._planning_table.setColumnWidth(0, 190)
+        self._planning_table.setColumnWidth(
+            0,
+            max(140, min(320, self._settings.planning_task_column_width)),
+        )
         for col in range(1, 8):
             header.setSectionResizeMode(col, QHeaderView.Stretch)
         header.setSectionResizeMode(8, QHeaderView.Fixed)
-        self._planning_table.setColumnWidth(8, 94)
+        self._planning_table.setColumnWidth(
+            8,
+            max(72, min(160, self._settings.planning_total_column_width)),
+        )
 
         controls = QHBoxLayout()
         controls.setContentsMargins(0, 0, 0, 0)
@@ -537,6 +563,12 @@ class MainWindow(QMainWindow):
             empty_symbol = "◌"
             if not self._tomato_icon.isNull():
                 icon = self._tomato_icon
+        elif symbol_style == "square":
+            filled_symbol = "■"
+            empty_symbol = "□"
+        elif symbol_style == "bar":
+            filled_symbol = "▰"
+            empty_symbol = "▱"
         else:
             filled_symbol = "●"
             empty_symbol = "○"
@@ -972,6 +1004,45 @@ class MainWindow(QMainWindow):
         normal_size = max(10, base_font_size - 2)
         selected_size = max(11, base_font_size - 1)
         cross_size = min(28, base_font_size + 6)
+        cell_style = self._settings.planning_cell_style
+        today_boost = max(30, min(100, self._settings.planning_today_highlight_percent))
+
+        if cell_style == "contrast":
+            task_selected_bg = QColor(160, 28, 57, 250)
+            task_default_bg = QColor(0, 0, 0, 38)
+            excluded_bg = QColor(122, 12, 34, 245)
+            excluded_today_bg = QColor(144, 22, 47, 250)
+            selected_day_bg = QColor(252, 126, 154, 252)
+            today_bg = QColor(228, 94, 126, min(255, 150 + today_boost))
+            today_selected_bg = QColor(238, 104, 136, min(255, 160 + today_boost))
+            regular_selected_bg = QColor(152, 34, 62, 220)
+            regular_bg = QColor(0, 0, 0, 32)
+            total_selected_bg = QColor(141, 40, 67, 220)
+            total_bg = QColor(0, 0, 0, 34)
+        elif cell_style == "minimal":
+            task_selected_bg = QColor(121, 28, 52, 232)
+            task_default_bg = QColor(0, 0, 0, 20)
+            excluded_bg = QColor(94, 14, 35, 212)
+            excluded_today_bg = QColor(124, 28, 52, 225)
+            selected_day_bg = QColor(233, 112, 142, 232)
+            today_bg = QColor(210, 88, 118, min(235, 120 + today_boost))
+            today_selected_bg = QColor(224, 98, 129, min(245, 130 + today_boost))
+            regular_selected_bg = QColor(128, 32, 56, 174)
+            regular_bg = QColor(0, 0, 0, 20)
+            total_selected_bg = QColor(120, 36, 58, 182)
+            total_bg = QColor(0, 0, 0, 24)
+        else:
+            task_selected_bg = QColor(142, 26, 52, 242)
+            task_default_bg = QColor(0, 0, 0, 28)
+            excluded_bg = QColor(112, 16, 34, 236)
+            excluded_today_bg = QColor(140, 28, 54, 245)
+            selected_day_bg = QColor(248, 120, 146, 252)
+            today_bg = QColor(220, 82, 112, min(252, 118 + today_boost))
+            today_selected_bg = QColor(230, 90, 122, min(255, 132 + today_boost))
+            regular_selected_bg = QColor(136, 28, 50, 196)
+            regular_bg = QColor(0, 0, 0, 24)
+            total_selected_bg = QColor(123, 34, 56, 214)
+            total_bg = QColor(0, 0, 0, 28)
 
         for row in range(self._planning_table.rowCount()):
             task_item = self._planning_table.item(row, 0)
@@ -981,7 +1052,7 @@ class MainWindow(QMainWindow):
                 task_id = str(task_item.data(Qt.UserRole) or "")
                 is_selected = task_id == self._planning_selected_task_id
                 task_item.setForeground(QColor(255, 250, 250, 248))
-                task_item.setBackground(QColor(142, 26, 52, 242) if is_selected else QColor(0, 0, 0, 28))
+                task_item.setBackground(task_selected_bg if is_selected else task_default_bg)
                 task_font = task_item.font()
                 task_font.setPointSize(selected_size if is_selected else normal_size)
                 task_font.setBold(is_selected)
@@ -1002,7 +1073,7 @@ class MainWindow(QMainWindow):
                 )
                 task_excluded_days = week_excluded.get(task_id, set())
                 if day_idx in task_excluded_days:
-                    item.setBackground(QColor(140, 28, 54, 245) if is_today_column else QColor(112, 16, 34, 236))
+                    item.setBackground(excluded_today_bg if is_today_column else excluded_bg)
                     item.setForeground(QColor(255, 240, 240, 245))
                     cross_font = item.font()
                     cross_font.setBold(True)
@@ -1023,7 +1094,7 @@ class MainWindow(QMainWindow):
                     item.setIcon(icon)
                     item.setText(text)
                 elif is_today_column:
-                    item.setBackground(QColor(230, 90, 122, 248) if is_selected else QColor(220, 82, 112, 230))
+                    item.setBackground(today_selected_bg if is_selected else today_bg)
                     item.setForeground(QColor(255, 248, 248, 255))
                     normal_font = item.font()
                     normal_font.setBold(is_selected)
@@ -1035,7 +1106,7 @@ class MainWindow(QMainWindow):
                     item.setIcon(icon)
                     item.setText(text)
                 else:
-                    item.setBackground(QColor(136, 28, 50, 196) if is_selected else QColor(0, 0, 0, 24))
+                    item.setBackground(regular_selected_bg if is_selected else regular_bg)
                     item.setForeground(QColor(255, 246, 246, 230))
                     normal_font = item.font()
                     normal_font.setBold(is_selected)
@@ -1058,7 +1129,7 @@ class MainWindow(QMainWindow):
                 total_item.setText(total_text if total_text else "0")
                 total_item.setIcon(total_icon)
                 total_item.setForeground(QColor(255, 247, 247, 246))
-                total_item.setBackground(QColor(123, 34, 56, 214) if is_selected else QColor(0, 0, 0, 28))
+                total_item.setBackground(total_selected_bg if is_selected else total_bg)
                 total_font = total_item.font()
                 total_font.setBold(is_selected or total_target > 0)
                 total_font.setPointSize(normal_size)
@@ -1075,6 +1146,8 @@ class MainWindow(QMainWindow):
         current_week_start = self._today - timedelta(days=self._today.weekday())
         today_index = self._today.weekday() if self._planning_week_start == current_week_start else None
         header_size = max(11, min(18, self._settings.planning_table_font_size - 1))
+        today_strength = max(30, min(100, self._settings.planning_today_highlight_percent))
+        today_header_alpha = min(255, 140 + today_strength)
         for idx, day_name in enumerate(day_short):
             d = self._planning_week_start + timedelta(days=idx)
             headers.append(f"{day_name} ({d.strftime('%d.%m')})")
@@ -1100,7 +1173,7 @@ class MainWindow(QMainWindow):
                 font.setBold(True)
                 font.setPointSize(header_size)
             elif today_index is not None and col == today_index + 1:
-                header_item.setBackground(QColor(220, 84, 114, 245))
+                header_item.setBackground(QColor(220, 84, 114, today_header_alpha))
                 header_item.setForeground(QColor(255, 250, 250, 255))
                 font.setBold(True)
                 font.setPointSize(header_size + 1)
@@ -1400,6 +1473,13 @@ class MainWindow(QMainWindow):
         self._settings_planning_visual_style = NoWheelComboBox(planning_box)
         self._settings_planning_visual_style.addItem("Кружки", "circle")
         self._settings_planning_visual_style.addItem("Помидоры", "tomato")
+        self._settings_planning_visual_style.addItem("Квадраты", "square")
+        self._settings_planning_visual_style.addItem("Полоски", "bar")
+
+        self._settings_planning_cell_style = NoWheelComboBox(planning_box)
+        self._settings_planning_cell_style.addItem("Мягкий", "soft")
+        self._settings_planning_cell_style.addItem("Контрастный", "contrast")
+        self._settings_planning_cell_style.addItem("Минималистичный", "minimal")
 
         self._settings_planning_visual_max_symbols = NoWheelSpinBox(planning_box)
         self._settings_planning_visual_max_symbols.setRange(3, 16)
@@ -1413,6 +1493,18 @@ class MainWindow(QMainWindow):
         self._settings_planning_table_font_size.setRange(12, 22)
         self._settings_planning_table_font_size.setSuffix(" px")
 
+        self._settings_planning_today_highlight_percent = NoWheelSpinBox(planning_box)
+        self._settings_planning_today_highlight_percent.setRange(30, 100)
+        self._settings_planning_today_highlight_percent.setSuffix(" %")
+
+        self._settings_planning_task_column_width = NoWheelSpinBox(planning_box)
+        self._settings_planning_task_column_width.setRange(140, 320)
+        self._settings_planning_task_column_width.setSuffix(" px")
+
+        self._settings_planning_total_column_width = NoWheelSpinBox(planning_box)
+        self._settings_planning_total_column_width.setRange(72, 160)
+        self._settings_planning_total_column_width.setSuffix(" px")
+
         self._settings_planning_auto_switch_to_timer = QCheckBox(
             "Автопереход в Pomodoro при выборе задачи",
             planning_box,
@@ -1424,10 +1516,41 @@ class MainWindow(QMainWindow):
 
         planning_layout.addRow("Формат прогресса", self._settings_planning_progress_view)
         planning_layout.addRow("Тип визуализации", self._settings_planning_visual_style)
+        planning_layout.addRow("Стиль таблицы", self._settings_planning_cell_style)
         planning_layout.addRow("Макс. иконок в ячейке", self._settings_planning_visual_max_symbols)
         planning_layout.addRow("Высота строки таблицы", self._settings_planning_row_height)
         planning_layout.addRow("Размер шрифта таблицы", self._settings_planning_table_font_size)
+        planning_layout.addRow("Подсветка текущего дня", self._settings_planning_today_highlight_percent)
+        planning_layout.addRow("Ширина колонки «Задача»", self._settings_planning_task_column_width)
+        planning_layout.addRow("Ширина колонки «Всего»", self._settings_planning_total_column_width)
         planning_layout.addRow("", self._settings_planning_auto_switch_to_timer)
+
+        sound_box = QFrame(card)
+        sound_box.setObjectName("settingsFormBox")
+        sound_layout = QFormLayout(sound_box)
+        sound_layout.setContentsMargins(16, 14, 16, 14)
+        sound_layout.setHorizontalSpacing(24)
+        sound_layout.setVerticalSpacing(14)
+
+        sound_title = QLabel("Звук таймера", sound_box)
+        sound_title.setObjectName("settingsSectionTitle")
+        sound_layout.addRow(sound_title)
+
+        self._settings_timer_sound_id = NoWheelComboBox(sound_box)
+        for sound_id, label in available_timer_sounds():
+            self._settings_timer_sound_id.addItem(label, sound_id)
+
+        self._settings_timer_sound_volume_percent = NoWheelSpinBox(sound_box)
+        self._settings_timer_sound_volume_percent.setRange(0, 100)
+        self._settings_timer_sound_volume_percent.setSuffix(" %")
+
+        self._settings_sound_preview_button = QPushButton("Прослушать", sound_box)
+        self._settings_sound_preview_button.setObjectName("settingsPreviewButton")
+        self._settings_sound_preview_button.clicked.connect(self._preview_selected_timer_sound)
+
+        sound_layout.addRow("Сигнал завершения", self._settings_timer_sound_id)
+        sound_layout.addRow("Громкость сигнала", self._settings_timer_sound_volume_percent)
+        sound_layout.addRow("", self._settings_sound_preview_button)
 
         floating_box = QFrame(card)
         floating_box.setObjectName("settingsFormBox")
@@ -1495,6 +1618,7 @@ class MainWindow(QMainWindow):
         card_layout.addWidget(general_box)
         card_layout.addWidget(main_box)
         card_layout.addWidget(planning_box)
+        card_layout.addWidget(sound_box)
         card_layout.addWidget(floating_box)
         card_layout.addLayout(buttons)
 
@@ -1519,10 +1643,16 @@ class MainWindow(QMainWindow):
             self._settings_main_card_opacity_percent,
             self._settings_planning_progress_view,
             self._settings_planning_visual_style,
+            self._settings_planning_cell_style,
             self._settings_planning_visual_max_symbols,
             self._settings_planning_row_height,
             self._settings_planning_table_font_size,
+            self._settings_planning_today_highlight_percent,
+            self._settings_planning_task_column_width,
+            self._settings_planning_total_column_width,
             self._settings_planning_auto_switch_to_timer,
+            self._settings_timer_sound_id,
+            self._settings_timer_sound_volume_percent,
             self._settings_always_on_top_default,
             self._settings_floating_opacity_percent,
             self._settings_floating_pin_button_size,
@@ -1558,14 +1688,28 @@ class MainWindow(QMainWindow):
                 elif widget is self._settings_planning_visual_style:
                     index = self._settings_planning_visual_style.findData(source_settings.planning_visual_style)
                     self._settings_planning_visual_style.setCurrentIndex(0 if index < 0 else index)
+                elif widget is self._settings_planning_cell_style:
+                    index = self._settings_planning_cell_style.findData(source_settings.planning_cell_style)
+                    self._settings_planning_cell_style.setCurrentIndex(0 if index < 0 else index)
                 elif widget is self._settings_planning_visual_max_symbols:
                     widget.setValue(source_settings.planning_visual_max_symbols)
                 elif widget is self._settings_planning_row_height:
                     widget.setValue(source_settings.planning_row_height)
                 elif widget is self._settings_planning_table_font_size:
                     widget.setValue(source_settings.planning_table_font_size)
+                elif widget is self._settings_planning_today_highlight_percent:
+                    widget.setValue(source_settings.planning_today_highlight_percent)
+                elif widget is self._settings_planning_task_column_width:
+                    widget.setValue(source_settings.planning_task_column_width)
+                elif widget is self._settings_planning_total_column_width:
+                    widget.setValue(source_settings.planning_total_column_width)
                 elif widget is self._settings_planning_auto_switch_to_timer:
                     widget.setChecked(source_settings.planning_auto_switch_to_timer_on_select)
+                elif widget is self._settings_timer_sound_id:
+                    index = self._settings_timer_sound_id.findData(source_settings.timer_sound_id)
+                    self._settings_timer_sound_id.setCurrentIndex(0 if index < 0 else index)
+                elif widget is self._settings_timer_sound_volume_percent:
+                    widget.setValue(source_settings.timer_sound_volume_percent)
                 elif widget is self._settings_always_on_top_default:
                     self._settings_always_on_top_default.setChecked(
                         source_settings.always_on_top_default
@@ -1596,6 +1740,12 @@ class MainWindow(QMainWindow):
             4500,
         )
 
+    def _preview_selected_timer_sound(self) -> None:
+        sound_id = str(self._settings_timer_sound_id.currentData())
+        volume = self._settings_timer_sound_volume_percent.value()
+        preview_completion_alert(sound_id=sound_id, volume_percent=volume)
+        self.statusBar().showMessage("Проигрываю выбранный сигнал.", 1800)
+
     def _save_settings_page(self) -> None:
         new_settings = AppSettings(
             pomodoro_minutes=self._settings_pomodoro.value(),
@@ -1610,10 +1760,16 @@ class MainWindow(QMainWindow):
             main_card_opacity_percent=self._settings_main_card_opacity_percent.value(),
             planning_progress_view=str(self._settings_planning_progress_view.currentData()),
             planning_visual_style=str(self._settings_planning_visual_style.currentData()),
+            planning_cell_style=str(self._settings_planning_cell_style.currentData()),
             planning_visual_max_symbols=self._settings_planning_visual_max_symbols.value(),
             planning_row_height=self._settings_planning_row_height.value(),
             planning_table_font_size=self._settings_planning_table_font_size.value(),
+            planning_today_highlight_percent=self._settings_planning_today_highlight_percent.value(),
+            planning_task_column_width=self._settings_planning_task_column_width.value(),
+            planning_total_column_width=self._settings_planning_total_column_width.value(),
             planning_auto_switch_to_timer_on_select=self._settings_planning_auto_switch_to_timer.isChecked(),
+            timer_sound_id=str(self._settings_timer_sound_id.currentData()),
+            timer_sound_volume_percent=self._settings_timer_sound_volume_percent.value(),
             always_on_top_default=self._settings_always_on_top_default.isChecked(),
             floating_opacity_percent=self._settings_floating_opacity_percent.value(),
             floating_pin_button_size=self._settings_floating_pin_button_size.value(),
@@ -1709,7 +1865,19 @@ class MainWindow(QMainWindow):
 
         icon_size = max(12, min(22, self._settings.planning_table_font_size))
         self._planning_table.setIconSize(QSize(icon_size, icon_size))
-        self._refresh_planning_column_visuals()
+        self._planning_table.setColumnWidth(
+            0,
+            max(140, min(320, self._settings.planning_task_column_width)),
+        )
+        self._planning_table.setColumnWidth(
+            8,
+            max(72, min(160, self._settings.planning_total_column_width)),
+        )
+        self._planning_table.set_highlight_strength(self._settings.planning_today_highlight_percent)
+        if hasattr(self, "_week_header"):
+            self._update_planning_week_labels()
+        else:
+            self._refresh_planning_column_visuals()
 
     def _apply_floating_visual_settings(self) -> None:
         if self._floating_window is None:
@@ -1933,7 +2101,10 @@ class MainWindow(QMainWindow):
                     self._save_planning_state()
                     self._refresh_planning_column_visuals()
 
-        play_completion_alert()
+        play_completion_alert(
+            sound_id=self._settings.timer_sound_id,
+            volume_percent=self._settings.timer_sound_volume_percent,
+        )
         self.statusBar().showMessage(
             f"Режим «{finished_mode}» завершен. Далее: «{next_mode}». Нажмите СТАРТ.",
             5500,
