@@ -512,6 +512,7 @@ class MainWindow(QMainWindow):
         self._updates_nav.setObjectName("sidebarNavButton")
         self._updates_nav.setCheckable(True)
         self._updates_nav.clicked.connect(lambda: self._switch_page(self.PAGE_UPDATES))
+        self._updates_nav.setVisible(False)
 
         self._settings_nav = QPushButton("Настройки", sidebar)
         self._settings_nav.setObjectName("sidebarSettingsButton")
@@ -532,7 +533,6 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(self._pomodoro_nav)
         sidebar_layout.addWidget(self._planning_nav)
         sidebar_layout.addWidget(self._tasks_nav)
-        sidebar_layout.addWidget(self._updates_nav)
         sidebar_layout.addStretch(1)
         sidebar_layout.addWidget(self._settings_nav)
 

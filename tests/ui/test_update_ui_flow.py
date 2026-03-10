@@ -112,6 +112,9 @@ class UpdateUiFlowTests(unittest.TestCase):
 
         start_mock.assert_called_once()
 
+    def test_updates_nav_hidden_from_sidebar(self) -> None:
+        self.assertFalse(self.window._updates_nav.isVisible())
+
     def test_footer_appears_when_update_available(self) -> None:
         self.window._update_check_origin = "auto"
         self.window._update_check_show_popups = False

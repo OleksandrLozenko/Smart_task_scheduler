@@ -57,6 +57,8 @@ python main.py
   - `https://...`
   - `http://...`
   - `file:///...` (локальный файл для тестов)
+- По умолчанию используется манифест из репозитория:
+  - `https://raw.githubusercontent.com/OleksandrLozenko/Smart_task_scheduler/main/update_manifest.json`
 
 ### Cooldown авто-проверки
 - Используется интервал автопроверки (по умолчанию `12 часов`).
@@ -121,6 +123,14 @@ python main.py
   "published_at": "2026-03-10T12:00:00Z"
 }
 ```
+
+## Репозиторий как источник обновлений
+- Файл `update_manifest.json` лежит в корне репозитория и публикуется через `raw.githubusercontent`.
+- Для нового релиза:
+  1. Обновите `APP_VERSION` в [app_version.py](C:\Users\Someone\Downloads\FG\app\core\app_version.py).
+  2. Обновите поля в [update_manifest.json](C:\Users\Someone\Downloads\FG\update_manifest.json) (`latest_version`, `release_notes`, `download_url`, `sha256`, `published_at`).
+  3. Закоммитьте и запушьте изменения.
+  4. После этого клиенты при проверке увидят новую версию из репозитория.
 
 ### Пример `update_manifest.json` (already up to date)
 ```json

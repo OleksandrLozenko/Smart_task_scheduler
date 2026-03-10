@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from app.core.app_version import DEFAULT_UPDATE_MANIFEST_URL
 from app.core.app_paths import get_app_paths
 from app.core.file_io import atomic_write_text
 
@@ -37,7 +38,7 @@ class AppSettings:
     planning_confirm_before_timer_switch: bool = True
     planning_follow_tasks_queue: bool = True
     tasks_units_compact_mode: bool = False
-    updates_manifest_url: str = ""
+    updates_manifest_url: str = DEFAULT_UPDATE_MANIFEST_URL
     auto_check_updates_on_start: bool = True
     update_check_interval_hours: int = 12
     last_update_check_attempt_at: str = ""
@@ -181,9 +182,10 @@ class SettingsManager:
         }
         if normalized.get("timer_sound_id") not in allowed_timer_sound_ids:
             normalized["timer_sound_id"] = "alarm_classic"
-        normalized["updates_manifest_url"] = str(
-            normalized.get("updates_manifest_url", "")
-        ).strip()
+        normalized["updates_manifest_url"] = (
+            str(normalized.get("updates_manifest_url", "")).strip()
+            or DEFAULT_UPDATE_MANIFEST_URL
+        )
         normalized["last_update_check_attempt_at"] = str(
             normalized.get("last_update_check_attempt_at", "")
         ).strip()

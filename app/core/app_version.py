@@ -4,6 +4,9 @@ import re
 
 
 APP_VERSION = "0.6.0"
+DEFAULT_UPDATE_MANIFEST_URL = (
+    "https://raw.githubusercontent.com/OleksandrLozenko/Smart_task_scheduler/main/update_manifest.json"
+)
 _SEMVER_RE = re.compile(r"^\s*[vV]?(\d+)\.(\d+)\.(\d+)\s*$")
 
 
